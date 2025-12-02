@@ -1,0 +1,6 @@
+/target
+*.json
+*.txt
+*.s
+executables
+*.i
