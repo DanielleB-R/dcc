@@ -1,6 +1,7 @@
 pub mod char_escape;
 mod constant;
 pub mod ctype;
+pub mod symbol_table;
 pub mod type_table;
 
 pub use constant::Constant;
