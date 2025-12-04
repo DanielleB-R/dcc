@@ -1,6 +1,9 @@
+use std::io;
+
+use thiserror::Error;
+
 use crate::common::CType;
 use crate::lexer::token::TokenType;
-use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum LexerError {
@@ -215,4 +218,22 @@ pub enum TypecheckError {
 
     #[error("{0} on line {1}")]
     MiscError(&'static str, usize),
+}
+
+#[derive(Debug, Error)]
+pub enum CompilerError {
+    #[error("Error reading source {0}")]
+    SourceReadError(#[from] io::Error),
+
+    #[error("Error lexing source {0}")]
+    LexError(#[from] LexerError),
+
+    #[error("Error parsing source {0}")]
+    ParseError(#[from] ParserError),
+
+    #[error("Error resolving variables or labelling loops {0}")]
+    SemanticError(#[from] SemanticAnalysisError),
+
+    #[error("Error checking types {0}")]
+    TypeError(#[from] TypecheckError),
 }

@@ -1,13 +1,7 @@
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 
-pub fn print_option<T: Display>(option: &Option<T>) -> String {
-    option
-        .as_ref()
-        .map(|inner| format!("{}", inner))
-        .unwrap_or_else(|| "nil".to_owned())
-}
+use crate::common::print_option;
 
 #[derive(
     Clone, Copy, PartialEq, Eq, Debug, Hash, Display, PartialOrd, Ord, Serialize, Deserialize,

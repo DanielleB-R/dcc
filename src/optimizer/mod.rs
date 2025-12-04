@@ -94,7 +94,7 @@ pub fn address_taken_analysis(
     result
 }
 
-pub fn optimize_function(
+fn optimize_function(
     mut function: Function,
     symbols: &SymbolTable,
     passes: OptimizationPasses,
