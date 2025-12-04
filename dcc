@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+
+import os, sys, argparse
+
+mydir = os.path.dirname(os.path.realpath(__file__))
+
+arg_parser = argparse.ArgumentParser()
+
+arg_parser.add_argument("c_file")
+arg_parser.add_argument("-c", "--compile", action="store_true")
+arg_parser.add_argument("-l", "--library", action="append")
+arg_parser.add_argument("--lex", dest="option", action="store_const", const="--lex")
+arg_parser.add_argument("--parse", dest="option", action="store_const", const="--parse")
+arg_parser.add_argument(
+    "--validate", dest="option", action="store_const", const="--validate"
+)
+arg_parser.add_argument("--tacky", dest="option", action="store_const", const="--tacky")
+arg_parser.add_argument(
+    "--codegen", dest="option", action="store_const", const="--codegen"
+)
+arg_parser.add_argument("--debug", dest="option", action="store_const", const="--debug")
+arg_parser.add_argument("-S", "--skip", action="store_true")
+arg_parser.add_argument("-s", dest="skip", action="store_true")
+arg_parser.add_argument(
+    "--fold-constants", dest="optimize", action="append_const", const="fold"
+)
+arg_parser.add_argument(
+    "--propagate-copies", dest="optimize", action="append_const", const="propagate"
+)
+arg_parser.add_argument(
+    "--eliminate-unreachable-code",
+    dest="optimize",
+    action="append_const",
+    const="unreachable",
+)
+arg_parser.add_argument(
+    "--eliminate-dead-stores",
+    dest="optimize",
+    action="append_const",
+    const="dead-stores",
+)
+arg_parser.add_argument(
+    "--optimize",
+    dest="optimize",
+    action="store_const",
+    const=["fold", "propagate", "unreachable", "dead-stores"],
+)
+
+args = arg_parser.parse_args()
+
+option = args.option if args.option is not None else ""
+optimize = f"--optimize={','.join(args.optimize)}" if args.optimize is not None else ""
+
+i_file = args.c_file.replace(".c", ".i")
+s_file = args.c_file.replace(".c", ".s")
+o_file = args.c_file.replace(".c", ".o")
+output = args.c_file.replace(".c", "")
+
+status = os.system(f"gcc -E -P {args.c_file} -o {i_file}")
+
+if status != 0:
+    sys.exit(os.waitstatus_to_exitcode(status))
+
+status = os.system(f"{mydir}/target/debug/dcc {option} {optimize} {i_file}")
+
+if status != 0:
+    sys.exit(os.waitstatus_to_exitcode(status))
+
+os.system(f"rm -f {i_file}")
+
+if args.skip or (option != "" and option != "--debug"):
+    sys.exit(0)
+
+if args.compile:
+    status = os.system(f"gcc -c {s_file} -o {o_file}")
+    sys.exit(os.waitstatus_to_exitcode(status))
+else:
+    libraries = (
+        "" if args.library is None else " ".join(f"-l{name}" for name in args.library)
+    )
+    status = os.system(f"gcc -g {s_file} -o {output} {libraries}")
+    sys.exit(os.waitstatus_to_exitcode(status))

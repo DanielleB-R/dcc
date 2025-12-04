@@ -1,6 +1,6 @@
 use std::{env, fs, process};
 
-use my_c_compiler::{OptimizationPasses, Stage, compile, errors::CompilerError};
+use dcc::{compile, errors::CompilerError, OptimizationPasses, Stage};
 
 fn main() -> Result<(), CompilerError> {
     let args: Vec<_> = env::args().collect();
