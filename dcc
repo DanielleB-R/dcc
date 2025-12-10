@@ -51,22 +51,14 @@ args = arg_parser.parse_args()
 option = args.option if args.option is not None else ""
 optimize = f"--optimize={','.join(args.optimize)}" if args.optimize is not None else ""
 
-i_file = args.c_file.replace(".c", ".i")
 s_file = args.c_file.replace(".c", ".s")
 o_file = args.c_file.replace(".c", ".o")
 output = args.c_file.replace(".c", "")
 
-status = os.system(f"gcc -E -P {args.c_file} -o {i_file}")
+status = os.system(f"{mydir}/target/debug/dcc {option} {optimize} {args.c_file}")
 
 if status != 0:
     sys.exit(os.waitstatus_to_exitcode(status))
-
-status = os.system(f"{mydir}/target/debug/dcc {option} {optimize} {i_file}")
-
-if status != 0:
-    sys.exit(os.waitstatus_to_exitcode(status))
-
-os.system(f"rm -f {i_file}")
 
 if args.skip or (option != "" and option != "--debug"):
     sys.exit(0)

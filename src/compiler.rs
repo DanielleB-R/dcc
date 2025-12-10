@@ -2,7 +2,6 @@ use serde::Serialize;
 use std::{fmt::Display, fs, process};
 
 use crate::{
-    OptimizationPasses,
     backend_x64::{
         allocate_program, backend_table, emit_assembly, fixup_instructions,
         replace_pseudoregisters, translate_ir,
@@ -13,6 +12,7 @@ use crate::{
     parser::parse_tokens,
     semantic_analysis::{analyze_statements, resolve_variables, typecheck_program},
     tacky::tackify_program,
+    OptimizationPasses,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -33,13 +33,28 @@ fn write_debug_text_file(filename: &str, data: impl Display) {
     let _ = fs::write(filename, format!("{}", data));
 }
 
+fn preprocess_source(source_name: &str) -> std::io::Result<String> {
+    let output = process::Command::new("gcc")
+        .arg("-E")
+        .arg("-P")
+        .arg(source_name)
+        .output()?;
+
+    if !output.status.success() {
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        process::exit(-1);
+    }
+
+    Ok(String::from_utf8(output.stdout).unwrap())
+}
+
 pub fn compile(
     source_name: &str,
     stage: Stage,
     debug: bool,
     optimization_passes: OptimizationPasses,
 ) -> Result<String, CompilerError> {
-    let source = fs::read_to_string(source_name)?;
+    let source = preprocess_source(source_name)?;
 
     let tokens = lex_input(&source)?;
 

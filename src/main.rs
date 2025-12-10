@@ -69,7 +69,7 @@ fn main() -> Result<(), CompilerError> {
         process::exit(1);
     });
 
-    let asm_name = source_name.replace(".i", ".s");
+    let asm_name = source_name.replace(".c", ".s");
 
     if let Err(e) = fs::write(asm_name, output) {
         eprintln!("Error writing assembly file {}", e);
