@@ -20,6 +20,12 @@ struct StageArgs {
 
     #[arg(long)]
     codegen: bool,
+
+    #[arg(long, short = 's')]
+    skip: bool,
+
+    #[arg(long, short)]
+    compile: bool,
 }
 
 fn compiler_stage(args: &StageArgs) -> Stage {
@@ -82,6 +88,46 @@ fn compiler_optimizations(args: &OptimizationArgs) -> OptimizationPasses {
     passes
 }
 
+fn assemble_source(asm_name: &str) -> std::io::Result<String> {
+    let object_name = asm_name.replace(".s", ".o");
+
+    let output = process::Command::new("gcc")
+        .arg("-g")
+        .arg("-c")
+        .arg(asm_name)
+        .arg("-o")
+        .arg(&object_name)
+        .output()?;
+
+    if !output.status.success() {
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        process::exit(-1);
+    }
+
+    Ok(object_name)
+}
+
+fn compile_source(asm_name: &str, libraries: &[String]) -> std::io::Result<String> {
+    let output_name = asm_name.replace(".s", "");
+
+    let mut command = process::Command::new("gcc");
+
+    command.arg("-g").arg(asm_name).arg("-o").arg(&output_name);
+
+    for lib in libraries {
+        command.arg(format!("-l{}", lib));
+    }
+
+    let output = command.output()?;
+
+    if !output.status.success() {
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        process::exit(-1);
+    }
+
+    Ok(output_name)
+}
+
 #[derive(Debug, Parser)]
 struct Options {
     #[command(flatten)]
@@ -94,6 +140,9 @@ struct Options {
 
     #[command(flatten)]
     optimize_args: OptimizationArgs,
+
+    #[arg(long, short)]
+    library: Vec<String>,
 }
 
 fn main() -> Result<(), CompilerError> {
@@ -109,10 +158,20 @@ fn main() -> Result<(), CompilerError> {
         debug = true;
     }
 
-    compile(&source_name, stage, debug, optimization_passes).unwrap_or_else(|e| {
+    let asm_name = compile(&source_name, stage, debug, optimization_passes).unwrap_or_else(|e| {
         eprintln!("{}", e);
         process::exit(1);
     });
+
+    if args.stage_args.skip || stage != Stage::Complete {
+        process::exit(0);
+    }
+
+    if args.stage_args.compile {
+        assemble_source(&asm_name)?;
+    } else {
+        compile_source(&asm_name, &args.library)?;
+    }
 
     Ok(())
 }

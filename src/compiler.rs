@@ -53,7 +53,7 @@ pub fn compile(
     stage: Stage,
     debug: bool,
     optimization_passes: OptimizationPasses,
-) -> Result<(), CompilerError> {
+) -> Result<String, CompilerError> {
     let source = preprocess_source(source_name)?;
 
     if debug {
@@ -159,7 +159,7 @@ pub fn compile(
 
     let asm_name = source_name.replace(".c", ".s");
 
-    fs::write(asm_name, output)?;
+    fs::write(&asm_name, output)?;
 
-    Ok(())
+    Ok(asm_name)
 }
