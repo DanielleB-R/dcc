@@ -22,34 +22,37 @@ arg_parser.add_argument("--debug", dest="option", action="store_const", const="-
 arg_parser.add_argument("-S", "--skip", action="store_true")
 arg_parser.add_argument("-s", dest="skip", action="store_true")
 arg_parser.add_argument(
-    "--fold-constants", dest="optimize", action="append_const", const="fold"
+    "--fold-constants", dest="optimize", action="append_const", const="--fold-constants"
 )
 arg_parser.add_argument(
-    "--propagate-copies", dest="optimize", action="append_const", const="propagate"
+    "--propagate-copies",
+    dest="optimize",
+    action="append_const",
+    const="--propagate-copies",
 )
 arg_parser.add_argument(
     "--eliminate-unreachable-code",
     dest="optimize",
     action="append_const",
-    const="unreachable",
+    const="--eliminate-unreachable-code",
 )
 arg_parser.add_argument(
     "--eliminate-dead-stores",
     dest="optimize",
     action="append_const",
-    const="dead-stores",
+    const="--eliminate-dead-stores",
 )
 arg_parser.add_argument(
     "--optimize",
     dest="optimize",
     action="store_const",
-    const=["fold", "propagate", "unreachable", "dead-stores"],
+    const=["--optimize"],
 )
 
 args = arg_parser.parse_args()
 
 option = args.option if args.option is not None else ""
-optimize = f"--optimize={','.join(args.optimize)}" if args.optimize is not None else ""
+optimize = " ".join(args.optimize) if args.optimize is not None else ""
 
 s_file = args.c_file.replace(".c", ".s")
 o_file = args.c_file.replace(".c", ".o")
