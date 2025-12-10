@@ -53,8 +53,12 @@ pub fn compile(
     stage: Stage,
     debug: bool,
     optimization_passes: OptimizationPasses,
-) -> Result<String, CompilerError> {
+) -> Result<(), CompilerError> {
     let source = preprocess_source(source_name)?;
+
+    if debug {
+        write_debug_text_file("preprocessed-source.i", &source);
+    }
 
     let tokens = lex_input(&source)?;
 
@@ -151,5 +155,11 @@ pub fn compile(
         process::exit(0);
     }
 
-    Ok(emit_assembly(asm_program, &symbols))
+    let output = emit_assembly(asm_program, &symbols);
+
+    let asm_name = source_name.replace(".c", ".s");
+
+    fs::write(asm_name, output)?;
+
+    Ok(())
 }
