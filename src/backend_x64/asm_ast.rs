@@ -5,27 +5,17 @@ use derive_more::{Display, From, IsVariant, Unwrap};
 use super::backend_table::BackendTable;
 use crate::common::symbol_table::StaticInit;
 use crate::common::type_table::TypeTable;
-use crate::common::{CType, CodeLabel, Identifier, print_vec};
+use crate::common::{print_vec, tree, CType, CodeLabel, Identifier};
 use crate::tacky::ir::{BinaryOp, UnaryOperator};
 
-#[derive(Clone, Debug, Display, From)]
-#[display("{}", print_vec(top_level, "\n\n"))]
-pub struct Program {
-    pub top_level: Vec<TopLevel>,
-}
+pub type Program = tree::Program<TopLevel>;
 
 impl Program {
     pub fn map_fn(self, mut transform: impl FnMut(Function) -> Function) -> Self {
-        Self {
-            top_level: self
-                .top_level
-                .into_iter()
-                .map(|tl| match tl {
-                    TopLevel::Fn(f) => transform(f).into(),
-                    tl => tl,
-                })
-                .collect(),
-        }
+        self.map_infallible(|tl| match tl {
+            TopLevel::Fn(f) => transform(f).into(),
+            tl => tl,
+        })
     }
 }
 

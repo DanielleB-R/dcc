@@ -4,16 +4,12 @@ use derive_more::{Display, From, Unwrap};
 use serde::Serialize;
 
 use crate::common::symbol_table::{STable, StaticInit, SymbolTable};
-use crate::common::{CType, CodeLabel, Constant, Identifier, print_option, print_vec};
+use crate::common::{print_option, print_vec, tree, CType, CodeLabel, Constant, Identifier};
 use crate::parser::ast::BinaryOperator;
 
 pub use crate::parser::ast::UnaryOperator;
 
-#[derive(Clone, Debug, Display, Serialize)]
-#[display("{}\n", print_vec(top_level, "\n\n"))]
-pub struct Program {
-    pub top_level: Vec<TopLevel>,
-}
+pub type Program = tree::Program<TopLevel>;
 
 #[derive(Clone, Debug, Display, From, Serialize)]
 #[serde(tag = "type")]
