@@ -4,28 +4,10 @@ use std::error::Error;
 
 use crate::common::ctype::{CType, FunctionType};
 use crate::common::type_table::TypeTable;
-use crate::common::{CodeLabel, Constant, Identifier, print_option, print_vec};
+use crate::common::{self, print_option, print_vec, CodeLabel, Constant, Identifier};
 use crate::lexer::token::{Token, TokenType};
 
-#[derive(Clone, Debug, Display, From, Serialize)]
-#[display("{}", print_vec(declarations, "\n\n"))]
-pub struct Program {
-    pub declarations: Vec<Declaration>,
-}
-
-impl Program {
-    pub fn map<E, F: FnMut(Declaration) -> Result<Declaration, E>>(
-        self,
-        transform: F,
-    ) -> Result<Self, E> {
-        Ok(self
-            .declarations
-            .into_iter()
-            .map(transform)
-            .collect::<Result<Vec<_>, E>>()?
-            .into())
-    }
-}
+pub type Program = common::tree::Program<Declaration>;
 
 #[derive(Clone, Debug, Display, Serialize)]
 #[display(
