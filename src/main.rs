@@ -21,7 +21,7 @@ struct StageArgs {
     #[arg(long)]
     codegen: bool,
 
-    #[arg(long, short = 's')]
+    #[arg(long, short = 'S')]
     skip: bool,
 
     #[arg(long, short)]
