@@ -46,7 +46,7 @@ pub fn escape(s: &str) -> String {
 
     for c in s.chars() {
         if c.is_ascii_control() {
-            result.push_str(&format!("\\{:o}", c as u32));
+            result.push_str(&format!("\\{:03o}", c as u32));
         } else if c == '"' {
             result.push_str("\\\"");
         } else if c == '\\' {
@@ -65,6 +65,6 @@ mod test {
 
     #[test]
     fn test_string_escaping() {
-        assert_eq!(escape("\u{7}\u{8}"), "\\7\\10");
+        assert_eq!(escape("\u{7}\u{8}"), "\\007\\010");
     }
 }

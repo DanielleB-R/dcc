@@ -89,7 +89,7 @@ fn compiler_optimizations(args: &OptimizationArgs) -> OptimizationPasses {
 }
 
 fn assemble_source(asm_name: &str) -> std::io::Result<String> {
-    let object_name = asm_name.replace(".s", ".o");
+    let object_name = asm_name.strip_suffix(".s").unwrap_or(asm_name).to_owned() + ".o";
 
     let output = process::Command::new("gcc")
         .arg("-g")
@@ -108,7 +108,7 @@ fn assemble_source(asm_name: &str) -> std::io::Result<String> {
 }
 
 fn compile_source(asm_name: &str, libraries: &[String]) -> std::io::Result<String> {
-    let output_name = asm_name.replace(".s", "");
+    let output_name = asm_name.strip_suffix(".s").unwrap_or(asm_name).to_owned();
 
     let mut command = process::Command::new("gcc");
 

@@ -157,7 +157,11 @@ pub fn compile(
 
     let output = emit_assembly(asm_program, &symbols);
 
-    let asm_name = source_name.replace(".c", ".s");
+    let asm_name = source_name
+        .strip_suffix(".c")
+        .unwrap_or(source_name)
+        .to_owned()
+        + ".s";
 
     fs::write(&asm_name, output)?;
 
