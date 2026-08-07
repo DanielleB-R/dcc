@@ -278,7 +278,7 @@ impl<'a> ControlFlowAnalysis<Inst, LiveRegisters> for LivenessAnalysis<'a> {
                 NodeId::Entry => panic!("bad graph"),
                 NodeId::BlockId(_) => {
                     live_registers
-                        .extend(annotations.get_block_annotation(*successor).iter().cloned());
+                        .extend(annotations.get_block_annotation(*successor).iter().copied());
                 }
             }
         }

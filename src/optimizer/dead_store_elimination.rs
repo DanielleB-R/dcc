@@ -66,7 +66,7 @@ impl<'a> ControlFlowAnalysis<Instruction, LiveVariables> for DeadStoreEliminator
                     if let Value::Var(name) = src {
                         current_live_variables.insert(*name);
                     }
-                    current_live_variables.extend(self.aliased_vars.iter().cloned());
+                    current_live_variables.extend(self.aliased_vars.iter().copied());
                 }
                 Instruction::Store(src, dest) => {
                     if let Value::Var(name) = src {
@@ -101,8 +101,8 @@ impl<'a> ControlFlowAnalysis<Instruction, LiveVariables> for DeadStoreEliminator
                             current_live_variables.insert(*name);
                         }
                     }
-                    current_live_variables.extend(self.static_variables.iter().cloned());
-                    current_live_variables.extend(self.aliased_vars.iter().cloned());
+                    current_live_variables.extend(self.static_variables.iter().copied());
+                    current_live_variables.extend(self.aliased_vars.iter().copied());
                 }
             }
         }
@@ -119,11 +119,11 @@ impl<'a> ControlFlowAnalysis<Instruction, LiveVariables> for DeadStoreEliminator
 
         for successor in block.get_successors().iter() {
             match successor {
-                NodeId::Exit => live_vars.extend(self.static_variables.iter().cloned()),
+                NodeId::Exit => live_vars.extend(self.static_variables.iter().copied()),
                 NodeId::Entry => panic!("Bad graph"),
                 NodeId::BlockId(_) => {
                     let successor_live_vars = annotations.get_block_annotation(*successor);
-                    live_vars.extend(successor_live_vars.iter().cloned());
+                    live_vars.extend(successor_live_vars.iter().copied());
                 }
             }
         }
