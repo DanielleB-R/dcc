@@ -112,6 +112,10 @@ pub fn compile(
         process::exit(0);
     }
 
+    // At this point, we have identified any C language errors in the source
+    // that may be present. Any errors in the following parts represent
+    // compiler bugs and will panic.
+
     let tacky_program = tackify_program(program, &mut symbol_table, &type_table);
 
     if debug {

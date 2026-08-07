@@ -3,9 +3,9 @@ use std::{collections::HashMap, sync::LazyLock};
 use super::asm_ast::*;
 use super::backend_table::BackendTable;
 use super::platform::{emit_label, emit_local_label};
-use crate::common::Identifier;
 use crate::common::char_escape::escape;
 use crate::common::symbol_table::StaticInit;
+use crate::common::Identifier;
 
 #[cfg(target_os = "linux")]
 const LINUX_NX_STACK: &str = "\t.section .note.GNU-stack,\"\",@progbits";
@@ -137,7 +137,7 @@ fn register_name(reg: Register, bits: Bits) -> &'static str {
         Bits::SixtyFour => &REGISTER_64_NAMES,
     })
     .get(&reg)
-    .unwrap()
+    .expect("All values should be mapped")
 }
 
 fn emit_type_suffix(asm_type: AssemblyType) -> &'static str {
@@ -450,6 +450,12 @@ fn emit_static_const(code: StaticConstant) -> Vec<String> {
     result.push(format!("_{}:", code.name.value));
     result.push(match code.init {
         StaticInit::DoubleInit(f) => format!("\t.quad {}", f.to_bits()),
+        StaticInit::StringInit(s, true) => {
+            format!("\t.asciz \"{}\"", escape(&s))
+        }
+        StaticInit::StringInit(s, false) => {
+            format!("\t.ascii \"{}\"", escape(&s))
+        }
         _ => unreachable!(),
     });
 

@@ -216,7 +216,11 @@ impl Operand {
             _ => panic!(),
         };
 
-        *symbols.get(&name.value).unwrap().unwrap_obj_ref().0
+        *symbols
+            .get(&name.value)
+            .expect("Type should exist")
+            .unwrap_obj_ref()
+            .0
     }
 }
 

@@ -197,7 +197,7 @@ fn find_used_and_updated(
         ),
         Inst::Cdq(_) => (vec![Register::AX.into()], vec![Register::DX.into()]),
         Inst::Call(name) => {
-            let arg_regs = symbols.get(&name.value).unwrap().unwrap_fun_ref().2.clone();
+            let arg_regs = symbols.get(&name.value).expect("Symbol should exist").unwrap_fun_ref().2.clone();
             (
                 arg_regs.into_iter().map(|reg| reg.into()).collect(),
                 vec![
