@@ -203,10 +203,7 @@ impl Typechecker {
                 if value_type.is_pointer()
                     && !initializer.unwrap_single_ref().is_null_pointer_constant()
                 {
-                    return Err(TypecheckError::MiscError(
-                        "Cannot initialize static pointer with non-null number",
-                        initializer.get_line(),
-                    ));
+                    return Err(TypecheckError::StaticPointerNonNullNumber(initializer.get_line()));
                 }
                 result.push(StaticInit::from_constant(
                     initializer.clone().get_constant(),
@@ -264,10 +261,7 @@ impl Typechecker {
         }
 
         if function_type.ret != CType::Void && !function_type.ret.is_complete(&self.types) {
-            return Err(TypecheckError::MiscError(
-                "Cannot call a function returning an incomplete type",
-                line,
-            ));
+            return Err(TypecheckError::CallReturnsIncompleteType(line));
         }
 
         let converted_args = args
@@ -495,10 +489,7 @@ impl Typechecker {
                     {
                         self.get_common_type(typed_left.get_type(), typed_right.get_type())
                     } else {
-                        return Err(TypecheckError::MiscError(
-                            "Invalid operands to equality expression",
-                            line,
-                        ));
+                        return Err(TypecheckError::InvalidEqualityOperands(line));
                     };
 
                 (
@@ -664,16 +655,10 @@ impl Typechecker {
                     return Err(TypecheckError::BadPointerArithmetic(line));
                 }
                 if typed_value.get_type().is_void() {
-                    return Err(TypecheckError::MiscError(
-                        "Cannot have void on the right hand side of compound assignment",
-                        line,
-                    ));
+                    return Err(TypecheckError::VoidCompoundAssignment(line));
                 }
                 if typed_value.get_type().is_structure() {
-                    return Err(TypecheckError::MiscError(
-                        "Cannot have structure on the right hand side of compound assignment",
-                        line,
-                    ));
+                    return Err(TypecheckError::StructureCompoundAssignment(line));
                 }
 
                 if expr_type.is_pointer() {
@@ -776,20 +761,14 @@ impl Typechecker {
                 let typed_inner = self.typecheck_exp(inner)?;
 
                 if !typed_inner.get_type().is_complete(&self.types) {
-                    return Err(TypecheckError::MiscError(
-                        "Can't get the size of an incomplete type",
-                        line,
-                    ));
+                    return Err(TypecheckError::SizeOfIncompleteType(line));
                 }
                 (Expr::SizeOf(typed_inner), CType::UnsignedLong)
             }
             Expr::SizeOfT(t) => {
                 self.validate_value_type_specifier(&t)?;
                 if !t.is_complete(&self.types) {
-                    return Err(TypecheckError::MiscError(
-                        "Can't get the size of an incomplete type",
-                        line,
-                    ));
+                    return Err(TypecheckError::SizeOfIncompleteType(line));
                 }
 
                 (Expr::SizeOfT(t), CType::UnsignedLong)
@@ -810,18 +789,12 @@ impl Typechecker {
                                 member.member_type.clone(),
                             ),
                             None => {
-                                return Err(TypecheckError::MiscError(
-                                    "Structure has no member with this name",
-                                    typed_structure.get_line(),
-                                ));
+                                return Err(TypecheckError::NoSuchMember(typed_structure.get_line()));
                             }
                         }
                     }
                     _ => {
-                        return Err(TypecheckError::MiscError(
-                            "Tried to get member of non-structure",
-                            typed_structure.get_line(),
-                        ));
+                        return Err(TypecheckError::MemberOfNonStructure(typed_structure.get_line()));
                     }
                 }
             }
@@ -830,10 +803,7 @@ impl Typechecker {
                 let ptr_type = typed_ptr.get_type().clone();
 
                 if !ptr_type.is_pointer() || !ptr_type.unwrap_pointer_ref().is_structure() {
-                    return Err(TypecheckError::MiscError(
-                        "Tried to get member of non-structure",
-                        typed_ptr.get_line(),
-                    ));
+                    return Err(TypecheckError::MemberOfNonStructure(typed_ptr.get_line()));
                 }
 
                 let tag = ptr_type.unwrap_pointer().unwrap_structure();
@@ -849,10 +819,7 @@ impl Typechecker {
                         member.member_type.clone(),
                     ),
                     None => {
-                        return Err(TypecheckError::MiscError(
-                            "Structure has no member with this name",
-                            typed_ptr.get_line(),
-                        ));
+                        return Err(TypecheckError::NoSuchMember(typed_ptr.get_line()));
                     }
                 }
             }
@@ -874,10 +841,7 @@ impl Typechecker {
                 {
                     Ok(typed_expr)
                 } else {
-                    Err(TypecheckError::MiscError(
-                        "Invalid use of incomplete structure type",
-                        typed_expr.get_line(),
-                    ))
+                    Err(TypecheckError::IncompleteStructureUse(typed_expr.get_line()))
                 }
             }
             _ => Ok(typed_expr),
@@ -982,10 +946,7 @@ impl Typechecker {
                 }
 
                 if !expr_type.is_integer() {
-                    return Err(TypecheckError::MiscError(
-                        "Switch expression must be integer",
-                        typed_expr.get_line(),
-                    ));
+                    return Err(TypecheckError::SwitchRequiresInteger(typed_expr.get_line()));
                 }
 
                 let mut seen_cases = HashSet::new();
@@ -996,13 +957,13 @@ impl Typechecker {
                         if case.value.get_type().is_integer() {
                             case.value = case.value.convert_type(&expr_type);
                             if seen_cases.contains(&case.value) {
-                                Err(TypecheckError::MiscError("Duplicate case value", 0))
+                                Err(TypecheckError::DuplicateCaseValue)
                             } else {
                                 seen_cases.insert(case.value);
                                 Ok(case)
                             }
                         } else {
-                            Err(TypecheckError::MiscError("Case value must be integer", 0))
+                            Err(TypecheckError::NonIntegerCaseValue)
                         }
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1059,10 +1020,7 @@ impl Typechecker {
                     .clone();
 
                 if init_list.len() > struct_def.members.len() {
-                    return Err(TypecheckError::MiscError(
-                        "Too many elements in structure initializer",
-                        line,
-                    ));
+                    return Err(TypecheckError::TooManyInitializerElements(line));
                 }
 
                 let mut index = 0;
@@ -1130,10 +1088,7 @@ impl Typechecker {
                 init.get_line(),
             )?
             .into()),
-            (CType::Array(..), _) => Err(TypecheckError::MiscError(
-                "Cannot initialize array with single initializer",
-                init.get_line(),
-            )),
+            (CType::Array(..), _) => Err(TypecheckError::ArraySingleInitializer(init.get_line())),
             (CType::Structure(tag), init) if init.is_compound() => {
                 let struct_def = self
                     .types
@@ -1168,10 +1123,7 @@ impl Typechecker {
 
                 Ok(static_inits.into())
             }
-            (CType::Structure(..), _) => Err(TypecheckError::MiscError(
-                "Cannot initialize structure with single initializer",
-                init.get_line(),
-            )),
+            (CType::Structure(..), _) => Err(TypecheckError::StructureSingleInitializer(init.get_line())),
             (_, init) if !init.is_single() => {
                 Err(TypecheckError::CannotInitializeScalar(init.get_line()))
             }
@@ -1198,10 +1150,7 @@ impl Typechecker {
             _ => {
                 let constant = init.clone().get_constant();
                 if var_type.is_pointer() && !constant.is_null_pointer_constant() {
-                    Err(TypecheckError::MiscError(
-                        "Cannot initialize static pointer with non-null constant",
-                        init.get_line(),
-                    ))
+                    Err(TypecheckError::StaticPointerNonNullConstant(init.get_line()))
                 } else {
                     Ok(StaticInit::from_constant(init.clone().get_constant(), var_type).into())
                 }
@@ -1231,10 +1180,7 @@ impl Typechecker {
         if (decl.init.is_some() || decl.storage_class == StorageClass::Static)
             && !decl.var_type.is_complete(&self.types)
         {
-            return Err(TypecheckError::MiscError(
-                "Incomplete typed variables cannot be defined, only declared",
-                0,
-            ));
+            return Err(TypecheckError::IncompleteVariableDefinition);
         }
 
         let mut global = decl.storage_class != StorageClass::Static;
@@ -1403,10 +1349,7 @@ impl Typechecker {
         if has_body {
             let ret_type = &fn_type.unwrap_function_ref().ret;
             if *ret_type != CType::Void && !ret_type.is_complete(&self.types) {
-                return Err(TypecheckError::MiscError(
-                    "Cannot define a function with an incomplete return type",
-                    0,
-                ));
+                return Err(TypecheckError::IncompleteFunctionReturnType);
             }
             if !fn_type
                 .unwrap_function_ref()
@@ -1414,10 +1357,7 @@ impl Typechecker {
                 .iter()
                 .all(|p| p.is_complete(&self.types))
             {
-                return Err(TypecheckError::MiscError(
-                    "Cannot define a function with an incomplete parameter type",
-                    0,
-                ));
+                return Err(TypecheckError::IncompleteFunctionParameterType);
             }
         }
 
@@ -1459,22 +1399,19 @@ impl Typechecker {
 
     fn validate_struct_definition(&mut self, decl: &StructDeclaration) -> Result<()> {
         if self.types.contains_key(&decl.tag.value) {
-            return Err(TypecheckError::MiscError("Duplicate struct definition", 0));
+            return Err(TypecheckError::DuplicateStructDefinition);
         }
 
         let mut seen_member_names: HashSet<&'static str> = HashSet::new();
 
         for member in &decl.members {
             if seen_member_names.contains(&member.name.value) {
-                return Err(TypecheckError::MiscError("Duplicate struct member name", 0));
+                return Err(TypecheckError::DuplicateStructMember);
             }
             seen_member_names.insert(member.name.value);
 
             if !member.member_type.is_valid_struct_member(&self.types) {
-                return Err(TypecheckError::MiscError(
-                    "Struct member is incomplete type",
-                    0,
-                ));
+                return Err(TypecheckError::IncompleteStructMember);
             }
         }
 

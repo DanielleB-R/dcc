@@ -216,8 +216,71 @@ pub enum TypecheckError {
     #[error("Can only increment or decrement numbers and pointers")]
     BadIncrement(usize),
 
-    #[error("{0} on line {1}")]
-    MiscError(&'static str, usize),
+    #[error("Cannot initialize static pointer with non-null number on line {0}")]
+    StaticPointerNonNullNumber(usize),
+
+    #[error("Cannot call a function returning an incomplete type on line {0}")]
+    CallReturnsIncompleteType(usize),
+
+    #[error("Invalid operands to equality expression on line {0}")]
+    InvalidEqualityOperands(usize),
+
+    #[error("Cannot have void on the right hand side of compound assignment on line {0}")]
+    VoidCompoundAssignment(usize),
+
+    #[error("Cannot have structure on the right hand side of compound assignment on line {0}")]
+    StructureCompoundAssignment(usize),
+
+    #[error("Can't get the size of an incomplete type on line {0}")]
+    SizeOfIncompleteType(usize),
+
+    #[error("Structure has no member with this name on line {0}")]
+    NoSuchMember(usize),
+
+    #[error("Tried to get member of non-structure on line {0}")]
+    MemberOfNonStructure(usize),
+
+    #[error("Invalid use of incomplete structure type on line {0}")]
+    IncompleteStructureUse(usize),
+
+    #[error("Switch expression must be integer on line {0}")]
+    SwitchRequiresInteger(usize),
+
+    #[error("Duplicate case value")]
+    DuplicateCaseValue,
+
+    #[error("Case value must be integer")]
+    NonIntegerCaseValue,
+
+    #[error("Too many elements in structure initializer on line {0}")]
+    TooManyInitializerElements(usize),
+
+    #[error("Cannot initialize array with single initializer on line {0}")]
+    ArraySingleInitializer(usize),
+
+    #[error("Cannot initialize structure with single initializer on line {0}")]
+    StructureSingleInitializer(usize),
+
+    #[error("Cannot initialize static pointer with non-null constant on line {0}")]
+    StaticPointerNonNullConstant(usize),
+
+    #[error("Incomplete typed variables cannot be defined, only declared")]
+    IncompleteVariableDefinition,
+
+    #[error("Cannot define a function with an incomplete return type")]
+    IncompleteFunctionReturnType,
+
+    #[error("Cannot define a function with an incomplete parameter type")]
+    IncompleteFunctionParameterType,
+
+    #[error("Duplicate struct definition")]
+    DuplicateStructDefinition,
+
+    #[error("Duplicate struct member name")]
+    DuplicateStructMember,
+
+    #[error("Struct member is incomplete type")]
+    IncompleteStructMember,
 }
 
 #[derive(Debug, Error)]
