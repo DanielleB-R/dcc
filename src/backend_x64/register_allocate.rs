@@ -80,10 +80,10 @@ fn get_pseudoregisters(instructions: &[Inst]) -> impl Iterator<Item = Operand> {
             | Inst::Idiv(_, dest)
             | Inst::Div(_, dest)
             | Inst::SetCC(_, dest)
-            | Inst::Push(dest) => {
-                if dest.is_pseudo() {
-                    operands.push(*dest);
-                }
+            | Inst::Push(dest)
+                if dest.is_pseudo() =>
+            {
+                operands.push(*dest);
             }
             _ => {}
         }
@@ -95,7 +95,7 @@ fn get_int_pseudoregisters(
     instructions: &[Inst],
     symbols: &BackendTable,
     aliased_vars: &HashSet<Identifier>,
-) -> Vec<InterferenceNode> {
+) -> Vec<(Operand, InterferenceNode)> {
     let operands: HashSet<Operand> = get_pseudoregisters(instructions).collect();
 
     operands
@@ -106,6 +106,7 @@ fn get_int_pseudoregisters(
                 && !aliased_vars.contains(name)
         })
         .map(InterferenceNode::new)
+        .map(|node| (node.id, node))
         .collect()
 }
 
@@ -113,7 +114,7 @@ fn get_fp_pseudoregisters(
     instructions: &[Inst],
     symbols: &BackendTable,
     aliased_vars: &HashSet<Identifier>,
-) -> Vec<InterferenceNode> {
+) -> Vec<(Operand, InterferenceNode)> {
     let operands: HashSet<Operand> = get_pseudoregisters(instructions).collect();
 
     operands
@@ -124,6 +125,7 @@ fn get_fp_pseudoregisters(
                 && !aliased_vars.contains(name)
         })
         .map(InterferenceNode::new)
+        .map(|node| (node.id, node))
         .collect()
 }
 
@@ -197,7 +199,12 @@ fn find_used_and_updated(
         ),
         Inst::Cdq(_) => (vec![Register::AX.into()], vec![Register::DX.into()]),
         Inst::Call(name) => {
-            let arg_regs = symbols.get(&name.value).expect("Symbol should exist").unwrap_fun_ref().2.clone();
+            let arg_regs = symbols
+                .get(&name.value)
+                .expect("Symbol should exist")
+                .unwrap_fun_ref()
+                .2
+                .clone();
             (
                 arg_regs.into_iter().map(|reg| reg.into()).collect(),
                 vec![
@@ -359,7 +366,7 @@ fn add_edges(
 
 #[derive(Debug)]
 struct InterferenceGraph {
-    nodes: Vec<InterferenceNode>,
+    nodes: HashMap<Operand, InterferenceNode>,
 }
 
 impl InterferenceGraph {
@@ -372,6 +379,7 @@ impl InterferenceGraph {
             nodes: Register::INT_ALLOCATE_REGS
                 .iter()
                 .map(|r| InterferenceNode::new_complete(*r, &Register::INT_ALLOCATE_REGS))
+                .map(|node| (node.id, node))
                 .collect(),
         };
 
@@ -391,6 +399,7 @@ impl InterferenceGraph {
             nodes: Register::FP_ALLOCATE_REGS
                 .iter()
                 .map(|r| InterferenceNode::new_complete(*r, &Register::FP_ALLOCATE_REGS))
+                .map(|node| (node.id, node))
                 .collect(),
         };
 
@@ -402,7 +411,7 @@ impl InterferenceGraph {
     }
 
     fn add_spill_costs(&mut self, instructions: &[Inst]) {
-        for node in &mut self.nodes {
+        for node in self.nodes.values_mut() {
             if node.id.is_reg() {
                 node.spill_cost = f64::INFINITY;
             } else {
@@ -416,7 +425,7 @@ impl InterferenceGraph {
     fn colour_graph_ret(&mut self, k: usize, pruned: &mut HashSet<Operand>) {
         let remaining: Vec<_> = self
             .nodes
-            .iter()
+            .values()
             .filter(|n| !pruned.contains(&n.id))
             .collect();
 
@@ -480,7 +489,7 @@ impl InterferenceGraph {
 
     fn create_register_map(self) -> (RegisterMap, HashSet<Register>) {
         let mut colour_map = HashMap::new();
-        for node in &self.nodes {
+        for node in self.nodes.values() {
             if let Operand::Reg(r) = node.id {
                 colour_map.insert(node.colour.unwrap(), r);
             }
@@ -489,7 +498,7 @@ impl InterferenceGraph {
         let mut register_map = RegisterMap::new();
         let mut callee_saved_regs = HashSet::new();
 
-        for node in self.nodes {
+        for (_, node) in self.nodes {
             if let Operand::Pseudo(name) = node.id
                 && let Some(colour) = node.colour
             {
@@ -505,15 +514,17 @@ impl InterferenceGraph {
     }
 
     fn has_node_for(&self, operand: &Operand) -> bool {
-        self.nodes.iter().any(|n| n.id == *operand)
+        self.nodes.contains_key(operand)
     }
 
     fn find_node(&self, id: &Operand) -> &InterferenceNode {
-        self.nodes.iter().find(|n| n.id == *id).unwrap()
+        self.nodes.get(id).expect("Must only find nodes that exist")
     }
 
     fn find_node_mut(&mut self, id: &Operand) -> &mut InterferenceNode {
-        self.nodes.iter_mut().find(|n| n.id == *id).unwrap()
+        self.nodes
+            .get_mut(id)
+            .expect("Must only find nodes that exist")
     }
 
     fn add_edge(&mut self, a: &Operand, b: &Operand) {
@@ -531,8 +542,7 @@ impl InterferenceGraph {
     }
 
     fn remove_node(&mut self, id: &Operand) {
-        let index = self.nodes.iter().position(|n| n.id == *id).unwrap();
-        self.nodes.swap_remove(index);
+        self.nodes.remove_entry(id);
     }
 }
 
