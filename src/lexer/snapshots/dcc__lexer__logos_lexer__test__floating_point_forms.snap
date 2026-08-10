@@ -1,0 +1,13 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "types(\"1.5 .5 1. 1e10 1.5e-10 1.E+5\")"
+---
+[
+    FloatingPointConstant,
+    FloatingPointConstant,
+    FloatingPointConstant,
+    FloatingPointConstant,
+    FloatingPointConstant,
+    FloatingPointConstant,
+    EOF,
+]

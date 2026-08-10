@@ -1,0 +1,13 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "values(r#\"\"\" \"hi\\n\\\"there\\\"\"\"#)"
+---
+[
+    Some(
+        "",
+    ),
+    Some(
+        "hi\\n\\\"there\\\"",
+    ),
+    None,
+]

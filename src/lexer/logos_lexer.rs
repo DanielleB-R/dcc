@@ -395,12 +395,12 @@ mod test {
 
     #[test]
     fn empty_input_is_just_eof() {
-        assert_eq!(types(""), vec![TokenType::EOF]);
+        insta::assert_debug_snapshot!(types(""));
     }
 
     #[test]
     fn whitespace_and_newlines_only_is_just_eof() {
-        assert_eq!(types("  \t\n\n  \n"), vec![TokenType::EOF]);
+        insta::assert_debug_snapshot!(types("  \t\n\n  \n"));
     }
 
     #[test]
@@ -415,58 +415,28 @@ mod test {
 
     #[test]
     fn identifier_with_digits_and_underscores() {
-        assert_eq!(
-            types("_foo bar_2 __x"),
-            vec![
-                TokenType::Identifier,
-                TokenType::Identifier,
-                TokenType::Identifier,
-                TokenType::EOF
-            ]
-        );
+        insta::assert_debug_snapshot!(types("_foo bar_2 __x"));
     }
 
     #[test]
     fn keyword_prefix_is_not_a_keyword() {
         // Longest-match wins: "intx" is an identifier, not IntKeyword + "x".
-        assert_eq!(types("intx"), vec![TokenType::Identifier, TokenType::EOF]);
+        insta::assert_debug_snapshot!(types("intx"));
     }
 
     #[test]
     fn integer_constant_suffixes() {
-        assert_eq!(
-            types("123 123l 123L 123u 123U"),
-            vec![
-                TokenType::IntConstant,
-                TokenType::LongConstant,
-                TokenType::LongConstant,
-                TokenType::UnsignedConstant,
-                TokenType::UnsignedConstant,
-                TokenType::EOF
-            ]
-        );
+        insta::assert_debug_snapshot!(types("123 123l 123L 123u 123U"));
     }
 
     #[test]
     fn unsigned_long_suffix_order_and_case_independent() {
-        assert_eq!(
-            types("123lu 123UL 123Lu 123uL"),
-            vec![
-                TokenType::UnsignedLongConstant,
-                TokenType::UnsignedLongConstant,
-                TokenType::UnsignedLongConstant,
-                TokenType::UnsignedLongConstant,
-                TokenType::EOF
-            ]
-        );
+        insta::assert_debug_snapshot!(types("123lu 123UL 123Lu 123uL"));
     }
 
     #[test]
     fn suffix_strips_from_value() {
-        assert_eq!(
-            values("123L 123UL"),
-            vec![Some("123".to_string()), Some("123".to_string()), None]
-        );
+        insta::assert_debug_snapshot!(values("123L 123UL"));
     }
 
     #[test]
@@ -481,43 +451,17 @@ mod test {
 
     #[test]
     fn floating_point_forms() {
-        assert_eq!(
-            types("1.5 .5 1. 1e10 1.5e-10 1.E+5"),
-            vec![
-                TokenType::FloatingPointConstant,
-                TokenType::FloatingPointConstant,
-                TokenType::FloatingPointConstant,
-                TokenType::FloatingPointConstant,
-                TokenType::FloatingPointConstant,
-                TokenType::FloatingPointConstant,
-                TokenType::EOF
-            ]
-        );
+        insta::assert_debug_snapshot!(types("1.5 .5 1. 1e10 1.5e-10 1.E+5"));
     }
 
     #[test]
     fn char_constant_with_escape() {
-        assert_eq!(
-            values(r"'a' '\n' '\''"),
-            vec![
-                Some("a".to_string()),
-                Some("\\n".to_string()),
-                Some("\\'".to_string()),
-                None
-            ]
-        );
+        insta::assert_debug_snapshot!(values(r"'a' '\n' '\''"));
     }
 
     #[test]
     fn string_literal_empty_and_with_escapes() {
-        assert_eq!(
-            values(r#""" "hi\n\"there\"""#),
-            vec![
-                Some("".to_string()),
-                Some(r#"hi\n\"there\""#.to_string()),
-                None
-            ]
-        );
+        insta::assert_debug_snapshot!(values(r#""" "hi\n\"there\"""#));
     }
 
     #[test]
@@ -532,44 +476,13 @@ mod test {
 
     #[test]
     fn multi_char_operators_are_greedy() {
-        assert_eq!(
-            types(">>= <<= == != && || -> ++ --"),
-            vec![
-                TokenType::GreaterGreaterEqual,
-                TokenType::LessLessEqual,
-                TokenType::EqualEqual,
-                TokenType::BangEqual,
-                TokenType::AndAnd,
-                TokenType::PipePipe,
-                TokenType::Arrow,
-                TokenType::PlusPlus,
-                TokenType::MinusMinus,
-                TokenType::EOF
-            ]
-        );
+        insta::assert_debug_snapshot!(types(">>= <<= == != && || -> ++ --"));
     }
 
     #[test]
     fn adjacent_single_char_operators_are_not_merged() {
         // we need to use operators that won't merge into bigger ones
-        assert_eq!(
-            types("(){}[];,.~?:"),
-            vec![
-                TokenType::OpenParen,
-                TokenType::CloseParen,
-                TokenType::OpenBrace,
-                TokenType::CloseBrace,
-                TokenType::OpenBracket,
-                TokenType::CloseBracket,
-                TokenType::Semicolon,
-                TokenType::Comma,
-                TokenType::Dot,
-                TokenType::Tilde,
-                TokenType::Question,
-                TokenType::Colon,
-                TokenType::EOF
-            ]
-        );
+        insta::assert_debug_snapshot!(types("(){}[];,.~?:"));
     }
 
     #[test]

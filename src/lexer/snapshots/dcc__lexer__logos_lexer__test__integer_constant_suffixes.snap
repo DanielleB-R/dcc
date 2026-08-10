@@ -1,0 +1,12 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "types(\"123 123l 123L 123u 123U\")"
+---
+[
+    IntConstant,
+    LongConstant,
+    LongConstant,
+    UnsignedConstant,
+    UnsignedConstant,
+    EOF,
+]

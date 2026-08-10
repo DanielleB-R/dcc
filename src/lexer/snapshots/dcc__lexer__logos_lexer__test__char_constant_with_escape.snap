@@ -1,0 +1,16 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "values(r\"'a' '\\n' '\\''\")"
+---
+[
+    Some(
+        "a",
+    ),
+    Some(
+        "\\n",
+    ),
+    Some(
+        "\\'",
+    ),
+    None,
+]
