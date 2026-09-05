@@ -1,3 +1,4 @@
+pub mod backend;
 pub mod char_escape;
 mod constant;
 pub mod ctype;
@@ -8,7 +9,7 @@ pub mod type_table;
 pub use constant::Constant;
 pub use ctype::CType;
 
-use std::{fmt::Display, hash::Hash};
+use std::{fmt::Display, fs, hash::Hash};
 
 use derive_more::Display;
 use serde::Serialize;
@@ -116,4 +117,20 @@ pub fn print_vec<T: Display>(vector: &[T], separator: &str) -> String {
         .map(|param| format!("{}", param))
         .collect::<Vec<_>>()
         .join(separator)
+}
+
+pub fn write_debug_file(filename: &str, data: impl Serialize) {
+    let _ = fs::write(filename, serde_json::to_vec_pretty(&data).unwrap());
+}
+
+pub fn write_debug_text_file(filename: &str, data: impl Display) {
+    let _ = fs::write(filename, format!("{}", data));
+}
+
+pub fn swap_suffix(filename: &str, old_suffix: &str, new_suffix: &str) -> String {
+    filename
+        .strip_suffix(old_suffix)
+        .unwrap_or(filename)
+        .to_owned()
+        + new_suffix
 }

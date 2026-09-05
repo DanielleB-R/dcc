@@ -1,7 +1,7 @@
 use clap::{Args, Parser};
 use std::{env, process};
 
-use dcc::{compile, errors::CompilerError, OptimizationPasses, Stage};
+use dcc::{OptimizationPasses, Stage, common::swap_suffix, compile, errors::CompilerError};
 
 #[derive(Args, Debug)]
 #[group(required = false, multiple = false)]
@@ -89,7 +89,7 @@ fn compiler_optimizations(args: &OptimizationArgs) -> OptimizationPasses {
 }
 
 fn assemble_source(asm_name: &str) -> std::io::Result<String> {
-    let object_name = asm_name.strip_suffix(".s").unwrap_or(asm_name).to_owned() + ".o";
+    let object_name = swap_suffix(asm_name, ".s", ".o");
 
     let output = process::Command::new("gcc")
         .arg("-g")
@@ -108,7 +108,7 @@ fn assemble_source(asm_name: &str) -> std::io::Result<String> {
 }
 
 fn compile_source(asm_name: &str, libraries: &[String]) -> std::io::Result<String> {
-    let output_name = asm_name.strip_suffix(".s").unwrap_or(asm_name).to_owned();
+    let output_name = swap_suffix(asm_name, ".s", "");
 
     let mut command = process::Command::new("gcc");
 
