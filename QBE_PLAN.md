@@ -22,18 +22,34 @@ are an explicit follow-up phase (see Non-goals).
 Danielle plans to implement this herself; this document is a reference design,
 not a task list for Claude to execute.
 
-## Pre-existing work: branch `qbe` (origin/qbe)
+## Progress so far (branch `qbe` (origin/qbe), as of 2026-09-10)
 
-Two commits so far: `d12a3e6 "Make the backend pluggable at the code level"`
-(rewritten from an earlier `b22a2dd` after `src/common/backend.rs` was added
-in — it was initially committed missing that file, which broke the build;
-fixed now) plus a routine dependency-version bump merged in from a branch
-named `artemis-qbe` (`derive_more`/`clap`/`logos`/etc. minor bumps only — no
-backend code, unrelated to QBE, safe to ignore). **The branch builds cleanly
-as of 2026-09-08.** It uses a real `Backend` **trait** rather than the plain
-enum-dispatch this plan originally sketched — the rest of this document
-(Driver/CLI plumbing, Module layout) is written to match that choice rather
-than re-argue for the enum. What's there:
+Commits: `d12a3e6 "Make the backend pluggable at the code level"` (rewritten
+from an earlier `b22a2dd` after `src/common/backend.rs` was added in — it was
+initially committed missing that file, which broke the build; fixed now),
+`a68689d` (this plan document), `ae64cc3 "Add --backend CLI flag"`, `45cca88
+"Stub in calling qbe"`, `5a5d2d2 "Pass Chapter 1 with qbe"` — plus a routine
+dependency-version bump merged in from a branch named `artemis-qbe`
+(`derive_more`/`clap`/`logos`/etc. minor bumps only — no backend code,
+unrelated to QBE, safe to ignore). **The branch builds cleanly.** It uses a
+real `Backend` **trait** rather than the plain enum-dispatch this plan
+originally sketched — the rest of this document (Driver/CLI plumbing, Module
+layout) is written to match that choice rather than re-argue for the enum.
+
+**Driver/CLI plumbing (Stage 0) is done**, not just planned: `BackendKind`
+(`clap::ValueEnum`, `X64`/`Qbe`, default `X64`) lives in `compiler.rs`,
+`compile()` takes a `backend_kind: BackendKind` param and dispatches via a
+plain `match`, and `main.rs` has a `--backend <x64|qbe>` flag threaded
+through. Confirmed working: `--backend bogus` is rejected by clap, `--backend
+qbe` selects `QbeBackend`.
+
+**Stage 1 (chapter 1 only — `return <int-const>;`) is green**:
+`../writing-a-c-compiler-tests/test_compiler target/debug/dcc --chapter 1 --
+--backend qbe` passes 24/24. The current implementation is a deliberately
+minimal stub, not the full module layout below yet — see "Module layout" for
+what's actually there vs. still-planned.
+
+What's there:
 
 - `src/common/backend.rs`:
   ```rust
@@ -59,10 +75,15 @@ than re-argue for the enum. What's there:
   `common/mod.rs` as `pub fn`s; a new `pub fn swap_suffix(filename,
   old_suffix, new_suffix)` was added there too and is already used by both
   `X64Backend::emit` and `main.rs`'s `assemble_source`/`compile_source`.
-- **Not yet done, still needed**: `compiler.rs::compile()`'s signature is
-  unchanged — it unconditionally builds an `X64Backend` and calls
-  `.emit(...)`. There is no backend-selection parameter, no CLI flag, and no
-  `backend_qbe/` module yet. That's the rest of this plan.
+- `src/backend_qbe/mod.rs` now exists with a real (if minimal)
+  `impl Backend for QbeBackend`, exercised by the CLI flag above. See "Module
+  layout" for its current shape and what's still `unimplemented!()`.
+- **Not yet done, still needed**: everything past chapter 1 — `Unary`,
+  `Binary`, multi-instruction function bodies, the planned module split
+  (`qbe_ast.rs`/`translate_ir.rs`/`types.rs`/`emit_qbe.rs`), `debug`/`Stage`
+  plumbing into `QbeBackend` (its constructor currently only takes
+  `source_name`, unlike `X64Backend`'s `debug, stage, source_name`). That's
+  the rest of this plan, starting at Stage 1's remaining chapters (2–4).
 
 ## Staged rollout, by book chapter
 
@@ -80,7 +101,7 @@ Don't skip ahead of a red stage.
 
 | Stage | Chapter(s) | New TACKY surface | Backend work added |
 |---|---|---|---|
-| 1 | 1–4 (constants, unary, binary arithmetic, logical/relational + short-circuit) | `Return`, `Unary`, `Binary` (arith/bitwise/compare), `Copy`, `Jump`/`JumpIfZero`/`JumpIfNotZero`/`Label` (short-circuit `&&`/`\|\|` already lower to these before "if" even exists) | finish the `qbe` branch's WIP driver plumbing (`Backend` trait is already committed and builds; still need a `BackendKind` enum + `--backend` flag + `qbe` shell-out), then `backend_qbe/mod.rs` skeleton + `QbeBackend`, `types.rs` for `Int` only, the block splitter in `translate_ir.rs`, straight-line instruction lowering, `emit_qbe.rs` |
+| 1 | 1–4 (constants, unary, binary arithmetic, logical/relational + short-circuit) | `Return`, `Unary`, `Binary` (arith/bitwise/compare), `Copy`, `Jump`/`JumpIfZero`/`JumpIfNotZero`/`Label` (short-circuit `&&`/`\|\|` already lower to these before "if" even exists) | **Chapter 1 done** (`--backend qbe`, 24/24): driver plumbing (`BackendKind`, `--backend` flag) is complete; `backend_qbe/mod.rs` currently hand-matches `Return(Constant)` only, emitted via one hardcoded format string — no `qbe_ast.rs`/`types.rs`/`emit_qbe.rs` split yet, no block splitter. **Remaining for chapters 2–4**: real `translate_ir.rs` (or grow `mod.rs` first, then split when it stops being one match arm), `types.rs` for `Int`, arithmetic/bitwise/compare instruction lowering, the block splitter for `Jump`/`Label` |
 | 2 | 5 (local variables) | more `Copy`/variable traffic, no new instruction kind | — |
 | 3 | 6 (if / conditional expressions) | same instructions, first real branch coverage | — |
 | 4 | 7 (compound statements/blocks) | none (scoping is a semantic-analysis concern) | — |
@@ -135,6 +156,17 @@ src/backend_qbe/
   types.rs           // CType -> QBE type mapping (base/ABI/ext type, alloc size+align)
   emit_qbe.rs        // qbe_ast -> QBE IL text
 ```
+
+**Current state (chapter 1 only):** none of this split exists yet — it's all
+in `mod.rs`: `QbeBackend { source_name: String }` (no `debug`/`stage` fields
+yet), a `translate_instruction` fn that matches only
+`Return(Some(Constant))` and panics (`unimplemented!()`) on anything else,
+and a `translate_tacky` fn that string-formats a single hardcoded
+`export function w $name() { @start ... }` template rather than walking
+`qbe_ast`/emitting through a real emitter. Fine as-is for a one-instruction
+stub; worth doing the real `qbe_ast`/`translate_ir`/`emit_qbe` split before
+this grows past straight-line chapter-2/3 arithmetic, since string-formatting
+won't scale to multi-instruction bodies or the block splitter.
 
 `QbeBackend::emit` (the `Backend` trait method — see Driver/CLI plumbing)
 does: `translate_ir` (TACKY → `qbe_ast`) → `emit_qbe` (→ text) → write to
@@ -261,9 +293,10 @@ by-value structs.
 
 ## Driver / CLI plumbing
 
-This matches what's already committed on the `qbe` branch (see "Pre-existing
-work" above; `src/common/backend.rs` now exists and the branch builds — no
-fix needed there anymore), completing the parts left unfinished on it.
+**Done**, and matches this section closely with one simplification: real
+code is in `compiler.rs`/`main.rs`/`src/backend_qbe/mod.rs` now (see
+"Progress so far" above). The snippets below are kept for reference/rationale
+but note where reality diverges.
 
 - **`src/common/backend.rs`** (already present):
   ```rust
@@ -302,18 +335,28 @@ fix needed there anymore), completing the parts left unfinished on it.
   let backend = X64Backend::new(debug, stage, source_name.to_owned());
   backend.emit(tacky_program, symbol_table, &type_table)
   ```
-  — becomes:
+  — became (actual code, `compiler.rs`):
   ```rust
-  match backend {
-      BackendKind::X64 => X64Backend::new(debug, stage, source_name.to_owned())
-          .emit(tacky_program, symbol_table, &type_table),
-      BackendKind::Qbe => QbeBackend::new(debug, stage, source_name.to_owned())
-          .emit(tacky_program, symbol_table, &type_table),
+  match backend_kind {
+      BackendKind::X64 => {
+          let backend = X64Backend::new(debug, stage, source_name.to_owned());
+          backend.emit(tacky_program, symbol_table, &type_table)
+      }
+      BackendKind::Qbe => {
+          let backend = QbeBackend::new(source_name.to_owned());
+          backend.emit(tacky_program, symbol_table, &type_table)
+      }
   }
   ```
-  New `--backend {x64,qbe}` CLI flag in `main.rs` (clap `ValueEnum`, default
-  `x64`), threaded into the `compile(...)` call. Both arms return a `.s` path
-  so `main.rs`'s `assemble_source`/`compile_source` need **no changes**.
+  One divergence from the plan: `QbeBackend::new` currently takes only
+  `source_name`, not `debug, stage, source_name` — chapter 1's stub has
+  nowhere to use `debug` (no intermediate `qbe_ast` to dump) or `stage`
+  (nothing between TACKY and the final `qbe` shell-out to stop at). Add both
+  back once `translate_ir.rs`/`emit_qbe.rs` exist and `Stage::Codegen` needs
+  a real early-exit point, per the `QbeBackend::emit` bullet below. `--backend
+  {x64,qbe}` CLI flag exists in `main.rs` (clap `ValueEnum`, default `x64`),
+  threaded into the `compile(...)` call. Both arms return a `.s` path so
+  `main.rs`'s `assemble_source`/`compile_source` need **no changes**.
 - **`qbe` shell-out**, in `backend_qbe/mod.rs`, mirroring `preprocess_source`'s
   style (`process::Command::new("qbe").arg("-o").arg(asm_path).arg(ssa_path)`
   — **verified: `-o <file>` must come before the positional input file, or
