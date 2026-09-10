@@ -1,7 +1,7 @@
 use std::process;
 
 use crate::{
-    OptimizationPasses,
+    backend_qbe::QbeBackend,
     backend_x64::X64Backend,
     common::{backend::Backend, write_debug_file, write_debug_text_file},
     errors::CompilerError,
@@ -10,6 +10,7 @@ use crate::{
     parser::parse_tokens,
     semantic_analysis::{analyze_statements, resolve_variables, typecheck_program},
     tacky::tackify_program,
+    OptimizationPasses,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -26,6 +27,7 @@ pub enum Stage {
 pub enum BackendKind {
     #[default]
     X64,
+    Qbe,
 }
 
 fn preprocess_source(source_name: &str) -> std::io::Result<String> {
@@ -134,6 +136,10 @@ pub fn compile(
     match backend_kind {
         BackendKind::X64 => {
             let backend = X64Backend::new(debug, stage, source_name.to_owned());
+            backend.emit(tacky_program, symbol_table, &type_table)
+        }
+        BackendKind::Qbe => {
+            let backend = QbeBackend::new(source_name.to_owned());
             backend.emit(tacky_program, symbol_table, &type_table)
         }
     }
