@@ -22,6 +22,12 @@ pub enum Stage {
     Complete,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, clap::ValueEnum)]
+pub enum BackendKind {
+    #[default]
+    X64,
+}
+
 fn preprocess_source(source_name: &str) -> std::io::Result<String> {
     let output = process::Command::new("gcc")
         .arg("-E")
@@ -42,6 +48,7 @@ pub fn compile(
     stage: Stage,
     debug: bool,
     optimization_passes: OptimizationPasses,
+    backend_kind: BackendKind,
 ) -> Result<String, CompilerError> {
     let source = preprocess_source(source_name)?;
 
@@ -124,7 +131,10 @@ pub fn compile(
         write_debug_text_file("optimized-tacky.txt", &tacky_program);
     }
 
-    let backend = X64Backend::new(debug, stage, source_name.to_owned());
-
-    backend.emit(tacky_program, symbol_table, &type_table)
+    match backend_kind {
+        BackendKind::X64 => {
+            let backend = X64Backend::new(debug, stage, source_name.to_owned());
+            backend.emit(tacky_program, symbol_table, &type_table)
+        }
+    }
 }

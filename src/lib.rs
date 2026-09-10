@@ -8,5 +8,5 @@ pub mod parser;
 pub mod semantic_analysis;
 pub mod tacky;
 
-pub use compiler::{Stage, compile};
+pub use compiler::{BackendKind, Stage, compile};
 pub use optimizer::OptimizationPasses;

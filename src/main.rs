@@ -1,7 +1,9 @@
 use clap::{Args, Parser};
 use std::{env, process};
 
-use dcc::{OptimizationPasses, Stage, common::swap_suffix, compile, errors::CompilerError};
+use dcc::{
+    BackendKind, OptimizationPasses, Stage, common::swap_suffix, compile, errors::CompilerError,
+};
 
 #[derive(Args, Debug)]
 #[group(required = false, multiple = false)]
@@ -143,6 +145,9 @@ struct Options {
 
     #[arg(long, short)]
     library: Vec<String>,
+
+    #[arg(long, value_enum, default_value_t = BackendKind::X64)]
+    backend: BackendKind,
 }
 
 fn main() -> Result<(), CompilerError> {
@@ -158,7 +163,14 @@ fn main() -> Result<(), CompilerError> {
         debug = true;
     }
 
-    let asm_name = compile(&source_name, stage, debug, optimization_passes).unwrap_or_else(|e| {
+    let asm_name = compile(
+        &source_name,
+        stage,
+        debug,
+        optimization_passes,
+        args.backend,
+    )
+    .unwrap_or_else(|e| {
         eprintln!("{}", e);
         process::exit(1);
     });
