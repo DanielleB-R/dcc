@@ -8,6 +8,17 @@ fn translate_value(code: ir::Value) -> qbe_ir::Value {
     }
 }
 
+fn translate_binary(code: ir::BinaryOp) -> qbe_ir::BinOp {
+    match code {
+        ir::BinaryOp::Add => qbe_ir::BinOp::Add,
+        ir::BinaryOp::Subtract => qbe_ir::BinOp::Sub,
+        ir::BinaryOp::Multiply => qbe_ir::BinOp::Mul,
+        ir::BinaryOp::Divide => qbe_ir::BinOp::Div,
+        ir::BinaryOp::Remainder => qbe_ir::BinOp::Rem,
+        _ => unimplemented!(),
+    }
+}
+
 fn translate_instruction(code: ir::Instruction) -> qbe_ir::Inst {
     match code {
         ir::Instruction::Return(Some(val)) => qbe_ir::Inst::Ret(translate_value(val)),
@@ -17,6 +28,12 @@ fn translate_instruction(code: ir::Instruction) -> qbe_ir::Inst {
         ir::Instruction::Unary(UnaryOperator::Complement, src, dest) => {
             qbe_ir::Inst::Complement(translate_value(src), translate_value(dest))
         }
+        ir::Instruction::Binary(op, src1, src2, dest) => qbe_ir::Inst::Binary(
+            translate_binary(op),
+            translate_value(src1),
+            translate_value(src2),
+            translate_value(dest),
+        ),
         _ => unimplemented!(),
     }
 }

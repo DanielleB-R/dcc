@@ -39,6 +39,16 @@ fn emit_value(code: qbe_ir::Value) -> String {
     }
 }
 
+fn emit_binary(code: qbe_ir::BinOp) -> &'static str {
+    match code {
+        qbe_ir::BinOp::Add => "add",
+        qbe_ir::BinOp::Sub => "sub",
+        qbe_ir::BinOp::Mul => "mul",
+        qbe_ir::BinOp::Div => "div",
+        qbe_ir::BinOp::Rem => "rem",
+    }
+}
+
 fn emit_instruction(code: qbe_ir::Inst) -> String {
     match code {
         qbe_ir::Inst::Ret(n) => {
@@ -50,6 +60,15 @@ fn emit_instruction(code: qbe_ir::Inst) -> String {
 
         qbe_ir::Inst::Complement(src, dest) => {
             format!("{} =w xor {}, -1", emit_value(dest), emit_value(src),)
+        }
+        qbe_ir::Inst::Binary(op, src1, src2, dest) => {
+            format!(
+                "{} =w {} {}, {}",
+                emit_value(dest),
+                emit_binary(op),
+                emit_value(src1),
+                emit_value(src2)
+            )
         }
     }
 }

@@ -18,10 +18,20 @@ pub enum Inst {
     Ret(Value),
     Negate(Value, Value),
     Complement(Value, Value),
+    Binary(BinOp, Value, Value, Value),
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub enum Value {
     Constant(i64),
     Temporary(&'static str),
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub enum BinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
 }
