@@ -2,26 +2,26 @@ use std::collections::HashMap;
 use std::mem;
 
 use super::visitor::StatementVisitor;
-use crate::common::CodeLabel;
+use crate::common::{CodeLabel, Counter};
 use crate::errors::SemanticAnalysisError;
 use crate::parser::ast::*;
 
 type Result<T> = std::result::Result<T, SemanticAnalysisError>;
 
+#[derive(Default)]
 struct LoopLabeller {
-    label_count: usize,
+    label_count: Counter,
 }
 
 impl LoopLabeller {
     fn new() -> Self {
-        Self { label_count: 0 }
+        Default::default()
     }
 
     fn make_label(&mut self, tag: &'static str) -> CodeLabel {
-        self.label_count += 1;
         CodeLabel {
             tag,
-            counter: self.label_count,
+            counter: self.label_count.get_next(),
         }
     }
 

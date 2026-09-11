@@ -4,7 +4,7 @@ use super::ir::{self, BinaryOp, ExpressionResult, Instruction, Value};
 use crate::common::symbol_table::{
     IdentifierAttrs, InitialValue, StaticAttr, StaticInit, SymbolEntry, SymbolTable,
 };
-use crate::common::{type_table::TypeTable, CType, CodeLabel, Constant, Identifier};
+use crate::common::{CType, CodeLabel, Constant, Identifier, type_table::TypeTable};
 use crate::parser::ast::{self, *};
 
 struct Tackier<'a> {

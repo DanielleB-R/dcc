@@ -3,9 +3,9 @@ use std::{collections::HashMap, sync::LazyLock};
 use super::asm_ast::*;
 use super::backend_table::BackendTable;
 use super::platform::{emit_label, emit_local_label};
+use crate::common::Identifier;
 use crate::common::char_escape::escape;
 use crate::common::symbol_table::StaticInit;
-use crate::common::Identifier;
 
 #[cfg(target_os = "linux")]
 const LINUX_NX_STACK: &str = "\t.section .note.GNU-stack,\"\",@progbits";

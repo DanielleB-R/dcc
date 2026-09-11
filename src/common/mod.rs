@@ -117,3 +117,20 @@ pub fn print_vec<T: Display>(vector: &[T], separator: &str) -> String {
         .collect::<Vec<_>>()
         .join(separator)
 }
+
+// No Clone impl, each counter has to stay consistent
+#[derive(Debug, Default)]
+pub struct Counter {
+    count: usize,
+}
+
+impl Counter {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn get_next(&mut self) -> usize {
+        self.count += 1;
+        self.count
+    }
+}

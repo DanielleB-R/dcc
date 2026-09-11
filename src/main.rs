@@ -1,7 +1,7 @@
 use clap::{Args, Parser};
 use std::{env, process};
 
-use dcc::{compile, errors::CompilerError, OptimizationPasses, Stage};
+use dcc::{OptimizationPasses, Stage, compile, errors::CompilerError};
 
 #[derive(Args, Debug)]
 #[group(required = false, multiple = false)]

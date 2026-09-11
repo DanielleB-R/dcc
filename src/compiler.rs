@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::{fmt::Display, fs, process};
 
 use crate::{
+    OptimizationPasses,
     backend_x64::{
         allocate_program, backend_table, emit_assembly, fixup_instructions,
         replace_pseudoregisters, translate_ir,
@@ -12,7 +13,6 @@ use crate::{
     parser::parse_tokens,
     semantic_analysis::{analyze_statements, resolve_variables, typecheck_program},
     tacky::tackify_program,
-    OptimizationPasses,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]

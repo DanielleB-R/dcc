@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::common::{CType, Identifier, ctype::FunctionType};
+use crate::common::{CType, Counter, Identifier, ctype::FunctionType};
 use crate::errors::SemanticAnalysisError;
 use crate::parser::ast::*;
 
@@ -86,20 +86,19 @@ fn resolve_type(c_type: CType, structure_map: &StructTagMap) -> Result<CType> {
     }
 }
 
+#[derive(Default)]
 struct IdentifierResolver {
-    name_counter: usize,
+    name_counter: Counter,
 }
 
 impl IdentifierResolver {
     fn new() -> Self {
-        Self { name_counter: 0 }
+        Default::default()
     }
 
     fn uniquify_name(&mut self, name: &Identifier) -> Identifier {
-        self.name_counter += 1;
-
         Identifier {
-            value: format!("{}.{}", name.value, self.name_counter).leak(),
+            value: format!("{}.{}", name.value, self.name_counter.get_next()).leak(),
             line: name.line,
             location: name.location,
         }

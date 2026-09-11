@@ -4,7 +4,7 @@ use derive_more::{Display, From, Unwrap};
 use serde::Serialize;
 
 use crate::common::symbol_table::{STable, StaticInit, SymbolTable};
-use crate::common::{print_option, print_vec, tree, CType, CodeLabel, Constant, Identifier};
+use crate::common::{CType, CodeLabel, Constant, Identifier, print_option, print_vec, tree};
 use crate::parser::ast::BinaryOperator;
 
 pub use crate::parser::ast::UnaryOperator;

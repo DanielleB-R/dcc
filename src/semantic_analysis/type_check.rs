@@ -1,6 +1,7 @@
 use std::cmp::max;
 use std::collections::HashSet;
 
+use crate::common::Counter;
 use crate::common::Identifier;
 use crate::common::ctype::*;
 use crate::common::symbol_table::*;
@@ -94,7 +95,7 @@ struct Typechecker {
     symbols: SymbolTable,
     types: TypeTable,
     current_return_type: Option<CType>,
-    constant_index: usize,
+    constant_index: Counter,
 }
 
 impl Typechecker {
@@ -103,13 +104,12 @@ impl Typechecker {
             symbols: SymbolTable::new(),
             types: TypeTable::new(),
             current_return_type: None,
-            constant_index: 0,
+            constant_index: Counter::new(),
         }
     }
 
     fn generate_constant_name(&mut self) -> String {
-        self.constant_index += 1;
-        format!(".string.{}", self.constant_index)
+        format!(".string.{}", self.constant_index.get_next())
     }
 
     fn get_common_type(&self, mut type1: &CType, mut type2: &CType) -> CType {
@@ -182,8 +182,7 @@ impl Typechecker {
             for init_elem in initializers {
                 result.extend(
                     self.typecheck_constant_initializer(init_elem, value_type)?
-                        .unwrap_initial()
-                        .into_iter(),
+                        .unwrap_initial(),
                 );
             }
 
@@ -203,7 +202,9 @@ impl Typechecker {
                 if value_type.is_pointer()
                     && !initializer.unwrap_single_ref().is_null_pointer_constant()
                 {
-                    return Err(TypecheckError::StaticPointerNonNullNumber(initializer.get_line()));
+                    return Err(TypecheckError::StaticPointerNonNullNumber(
+                        initializer.get_line(),
+                    ));
                 }
                 result.push(StaticInit::from_constant(
                     initializer.clone().get_constant(),
@@ -789,12 +790,16 @@ impl Typechecker {
                                 member.member_type.clone(),
                             ),
                             None => {
-                                return Err(TypecheckError::NoSuchMember(typed_structure.get_line()));
+                                return Err(TypecheckError::NoSuchMember(
+                                    typed_structure.get_line(),
+                                ));
                             }
                         }
                     }
                     _ => {
-                        return Err(TypecheckError::MemberOfNonStructure(typed_structure.get_line()));
+                        return Err(TypecheckError::MemberOfNonStructure(
+                            typed_structure.get_line(),
+                        ));
                     }
                 }
             }
@@ -841,7 +846,9 @@ impl Typechecker {
                 {
                     Ok(typed_expr)
                 } else {
-                    Err(TypecheckError::IncompleteStructureUse(typed_expr.get_line()))
+                    Err(TypecheckError::IncompleteStructureUse(
+                        typed_expr.get_line(),
+                    ))
                 }
             }
             _ => Ok(typed_expr),
@@ -1110,8 +1117,7 @@ impl Typechecker {
 
                     static_inits.extend(
                         self.typecheck_constant_initializer(init_elem, &member.member_type)?
-                            .unwrap_initial()
-                            .into_iter(),
+                            .unwrap_initial(),
                     );
 
                     current_offset = member.offset + member.member_type.size(&self.types);
@@ -1123,7 +1129,9 @@ impl Typechecker {
 
                 Ok(static_inits.into())
             }
-            (CType::Structure(..), _) => Err(TypecheckError::StructureSingleInitializer(init.get_line())),
+            (CType::Structure(..), _) => {
+                Err(TypecheckError::StructureSingleInitializer(init.get_line()))
+            }
             (_, init) if !init.is_single() => {
                 Err(TypecheckError::CannotInitializeScalar(init.get_line()))
             }
@@ -1150,7 +1158,9 @@ impl Typechecker {
             _ => {
                 let constant = init.clone().get_constant();
                 if var_type.is_pointer() && !constant.is_null_pointer_constant() {
-                    Err(TypecheckError::StaticPointerNonNullConstant(init.get_line()))
+                    Err(TypecheckError::StaticPointerNonNullConstant(
+                        init.get_line(),
+                    ))
                 } else {
                     Ok(StaticInit::from_constant(init.clone().get_constant(), var_type).into())
                 }

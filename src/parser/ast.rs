@@ -4,7 +4,7 @@ use std::error::Error;
 
 use crate::common::ctype::{CType, FunctionType};
 use crate::common::type_table::TypeTable;
-use crate::common::{self, print_option, print_vec, CodeLabel, Constant, Identifier};
+use crate::common::{self, CodeLabel, Constant, Identifier, print_option, print_vec};
 use crate::lexer::token::{Token, TokenType};
 
 pub type Program = common::tree::Program<Declaration>;
