@@ -22,13 +22,15 @@ are an explicit follow-up phase (see Non-goals).
 Danielle plans to implement this herself; this document is a reference design,
 not a task list for Claude to execute.
 
-## Progress so far (branch `qbe` (origin/qbe), as of 2026-09-10)
+## Progress so far (branch `qbe` (origin/qbe), as of 2026-09-11)
 
 Commits: `d12a3e6 "Make the backend pluggable at the code level"` (rewritten
 from an earlier `b22a2dd` after `src/common/backend.rs` was added in — it was
 initially committed missing that file, which broke the build; fixed now),
 `a68689d` (this plan document), `ae64cc3 "Add --backend CLI flag"`, `45cca88
-"Stub in calling qbe"`, `5a5d2d2 "Pass Chapter 1 with qbe"` — plus a routine
+"Stub in calling qbe"`, `5a5d2d2 "Pass Chapter 1 with qbe"`, `e7a477d`
+(earlier plan update), `f1cbce4 "Add a QBE IR and use it"`, `3ba57be
+"Implement Chapter 2"`, `b723fc4 "Implement Chapter 3"` — plus a routine
 dependency-version bump merged in from a branch named `artemis-qbe`
 (`derive_more`/`clap`/`logos`/etc. minor bumps only — no backend code,
 unrelated to QBE, safe to ignore). **The branch builds cleanly.** It uses a
@@ -43,11 +45,49 @@ plain `match`, and `main.rs` has a `--backend <x64|qbe>` flag threaded
 through. Confirmed working: `--backend bogus` is rejected by clap, `--backend
 qbe` selects `QbeBackend`.
 
-**Stage 1 (chapter 1 only — `return <int-const>;`) is green**:
-`../writing-a-c-compiler-tests/test_compiler target/debug/dcc --chapter 1 --
---backend qbe` passes 24/24. The current implementation is a deliberately
-minimal stub, not the full module layout below yet — see "Module layout" for
-what's actually there vs. still-planned.
+**Chapters 1–3 (constants, unary, binary arithmetic) are implemented and
+green — but only with `--eliminate-unreachable-code` also passed.** A real
+`qbe_ir.rs`/`translate_ir.rs` split now exists (see "Module layout") covering
+`Return`, `Negate`/`Complement`, and arithmetic `Binary` (add/sub/mul/div/
+rem). Bare `--backend qbe` currently fails **100% of runtime tests** in
+chapters 1–3 (not a subset — every `test_valid` case) with a QBE syntax
+error:
+
+```
+qbe:t.ssa:4: label or } expected
+```
+
+**Root cause**: TACKY unconditionally appends a defensive trailing `Return`
+after every function body regardless of reachability
+(`src/tacky/emit.rs:987-995`), so `int main(void){ return 2; }` produces
+TACKY `[Return(2), Return(0)]`. `emit_ssa` (in `mod.rs`) still dumps every
+instruction into one flat `@start` block with no splitting, so this becomes
+back-to-back terminators in the same block:
+```
+export function w $main() {
+@start
+ret 2
+ret 0
+}
+```
+which QBE rejects outright — a block can have only one terminator; anything
+after must start a new label. This is exactly the block-splitter gap flagged
+in "Function/program structure" below, not a QBE-mnemonic bug.
+
+**Confirmed workaround**: adding `--eliminate-unreachable-code` strips the
+dead trailing `Return` in TACKY before the backend ever sees it, and all
+three chapters pass 100% with it on:
+```
+../writing-a-c-compiler-tests/test_compiler target/debug/dcc --chapter <N> -- --backend qbe --eliminate-unreachable-code
+```
+**This is a stopgap, not a substitute for the real splitter.** It only works
+because chapters 1–3 have no genuine multi-block control flow — every extra
+`Return` is straight-line dead code the optimizer can delete. Chapter 4's
+short-circuit `&&`/`\|\|` (and every later chapter with `if`/loops) introduces
+`Jump`/`Label`/`JumpIfZero`/`JumpIfNotZero` producing multiple *reachable*
+blocks — no optimization pass makes those go away. Treat "implement the real
+block splitter in `emit_ssa`" as the next required step, not optional
+cleanup, before or alongside chapter 4.
 
 What's there:
 
@@ -75,15 +115,15 @@ What's there:
   `common/mod.rs` as `pub fn`s; a new `pub fn swap_suffix(filename,
   old_suffix, new_suffix)` was added there too and is already used by both
   `X64Backend::emit` and `main.rs`'s `assemble_source`/`compile_source`.
-- `src/backend_qbe/mod.rs` now exists with a real (if minimal)
-  `impl Backend for QbeBackend`, exercised by the CLI flag above. See "Module
-  layout" for its current shape and what's still `unimplemented!()`.
-- **Not yet done, still needed**: everything past chapter 1 — `Unary`,
-  `Binary`, multi-instruction function bodies, the planned module split
-  (`qbe_ast.rs`/`translate_ir.rs`/`types.rs`/`emit_qbe.rs`), `debug`/`Stage`
-  plumbing into `QbeBackend` (its constructor currently only takes
-  `source_name`, unlike `X64Backend`'s `debug, stage, source_name`). That's
-  the rest of this plan, starting at Stage 1's remaining chapters (2–4).
+- `src/backend_qbe/mod.rs`, `qbe_ir.rs`, and `translate_ir.rs` now exist with
+  a real `impl Backend for QbeBackend`, exercised by the CLI flag above. See
+  "Module layout" for current shape and what's still `unimplemented!()`.
+- **Not yet done, still needed**: the block splitter (see the
+  double-`ret`/`--eliminate-unreachable-code` finding above — this is now the
+  blocking item, not a nice-to-have), `Jump`/`Label`/`Copy`/comparisons for
+  chapter 4, `types.rs`, `emit_qbe.rs`'s dedicated split-out from `mod.rs`,
+  `debug`/`Stage` plumbing into `QbeBackend` (its constructor currently only
+  takes `source_name`, unlike `X64Backend`'s `debug, stage, source_name`).
 
 ## Staged rollout, by book chapter
 
@@ -101,7 +141,7 @@ Don't skip ahead of a red stage.
 
 | Stage | Chapter(s) | New TACKY surface | Backend work added |
 |---|---|---|---|
-| 1 | 1–4 (constants, unary, binary arithmetic, logical/relational + short-circuit) | `Return`, `Unary`, `Binary` (arith/bitwise/compare), `Copy`, `Jump`/`JumpIfZero`/`JumpIfNotZero`/`Label` (short-circuit `&&`/`\|\|` already lower to these before "if" even exists) | **Chapter 1 done** (`--backend qbe`, 24/24): driver plumbing (`BackendKind`, `--backend` flag) is complete; `backend_qbe/mod.rs` currently hand-matches `Return(Constant)` only, emitted via one hardcoded format string — no `qbe_ast.rs`/`types.rs`/`emit_qbe.rs` split yet, no block splitter. **Remaining for chapters 2–4**: real `translate_ir.rs` (or grow `mod.rs` first, then split when it stops being one match arm), `types.rs` for `Int`, arithmetic/bitwise/compare instruction lowering, the block splitter for `Jump`/`Label` |
+| 1 | 1–4 (constants, unary, binary arithmetic, logical/relational + short-circuit) | `Return`, `Unary`, `Binary` (arith/bitwise/compare), `Copy`, `Jump`/`JumpIfZero`/`JumpIfNotZero`/`Label` (short-circuit `&&`/`\|\|` already lower to these before "if" even exists) | **Chapters 1–3 implemented** (`Return`, `Negate`/`Complement`, arithmetic `Binary` in `qbe_ir.rs`/`translate_ir.rs`) but only green *with* `--eliminate-unreachable-code` — bare `--backend qbe` fails 100% of runtime tests on a double-`ret` syntax error (see "Progress so far"). **Blocking item for chapter 4**: the real block splitter (`emit_ssa` still emits one flat `@start` block); then `Copy`, comparisons, `Jump`/`Label`/`JumpIfZero`/`JumpIfNotZero`, `types.rs` |
 | 2 | 5 (local variables) | more `Copy`/variable traffic, no new instruction kind | — |
 | 3 | 6 (if / conditional expressions) | same instructions, first real branch coverage | — |
 | 4 | 7 (compound statements/blocks) | none (scoping is a semantic-analysis concern) | — |
@@ -157,16 +197,17 @@ src/backend_qbe/
   emit_qbe.rs        // qbe_ast -> QBE IL text
 ```
 
-**Current state (chapter 1 only):** none of this split exists yet — it's all
-in `mod.rs`: `QbeBackend { source_name: String }` (no `debug`/`stage` fields
-yet), a `translate_instruction` fn that matches only
-`Return(Some(Constant))` and panics (`unimplemented!()`) on anything else,
-and a `translate_tacky` fn that string-formats a single hardcoded
-`export function w $name() { @start ... }` template rather than walking
-`qbe_ast`/emitting through a real emitter. Fine as-is for a one-instruction
-stub; worth doing the real `qbe_ast`/`translate_ir`/`emit_qbe` split before
-this grows past straight-line chapter-2/3 arithmetic, since string-formatting
-won't scale to multi-instruction bodies or the block splitter.
+**Current state (chapters 1–3):** `qbe_ir.rs` (typed `Program`/`Function`/
+`Inst`/`Value`/`BinOp`) and `translate_ir.rs` (`translate_ir`) now exist,
+matching this layout's `qbe_ast.rs`/`translate_ir.rs` split in spirit (named
+`qbe_ir` rather than `qbe_ast`). `types.rs` and `emit_qbe.rs` don't exist yet
+— emission is a handful of `emit_*` functions still living in `mod.rs`
+(`emit_value`/`emit_binary`/`emit_instruction`/`emit_ssa`), and critically
+**`emit_ssa` still concatenates every instruction into one flat `@start`
+block** with no label/terminator splitting — see "Progress so far" for why
+that's now the blocking bug (double-`ret` syntax errors on every function
+whose body already ends in an explicit `return`), not just a scaling
+concern.
 
 `QbeBackend::emit` (the `Backend` trait method — see Driver/CLI plumbing)
 does: `translate_ir` (TACKY → `qbe_ast`) → `emit_qbe` (→ text) → write to
@@ -264,7 +305,14 @@ internally.
   known).
 - Every function body already ends in a defensive `Return`
   (`src/tacky/emit.rs:987-995`), so the last block always has a real
-  terminator — no synthesized trailing `ret` needed.
+  terminator — no synthesized trailing `ret` needed. **Caveat found in
+  practice**: this defensive `Return` is appended *unconditionally*, even
+  when the body already ends in an explicit one — so without the splitter,
+  it becomes a second terminator in the same flat block and QBE rejects the
+  whole file (`label or } expected`). The splitter fixes this for free (the
+  defensive `Return` just starts a new, unreachable-but-syntactically-valid
+  block); until it's in, `--eliminate-unreachable-code` is a stopgap that
+  only covers straight-line bodies (see "Progress so far").
 - `StaticVariable`/`StaticConstant` → `[export] data $name = align <n> {
   ... }`; all-zero init → `z <n>`. **Recommended phase-1 inclusion**: emit
   string-literal `StaticConstant`s (`CType::Array(Char,_)` +
