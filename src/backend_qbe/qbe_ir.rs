@@ -10,10 +10,18 @@ pub struct Program {
 #[derive(Clone, Debug, Serialize)]
 pub struct Function {
     pub name: Identifier,
-    pub body: Inst,
+    pub body: Vec<Inst>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub enum Inst {
-    Ret(i64),
+    Ret(Value),
+    Negate(Value, Value),
+    Complement(Value, Value),
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub enum Value {
+    Constant(i64),
+    Temporary(&'static str),
 }

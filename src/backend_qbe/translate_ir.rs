@@ -1,10 +1,21 @@
 use super::qbe_ir;
-use crate::tacky::ir;
+use crate::tacky::ir::{self, UnaryOperator};
+
+fn translate_value(code: ir::Value) -> qbe_ir::Value {
+    match code {
+        ir::Value::Constant(c) => qbe_ir::Value::Constant(c.unwrap_integer()),
+        ir::Value::Var(name) => qbe_ir::Value::Temporary(name.value),
+    }
+}
 
 fn translate_instruction(code: ir::Instruction) -> qbe_ir::Inst {
     match code {
-        ir::Instruction::Return(Some(ir::Value::Constant(c))) => {
-            qbe_ir::Inst::Ret(c.unwrap_integer())
+        ir::Instruction::Return(Some(val)) => qbe_ir::Inst::Ret(translate_value(val)),
+        ir::Instruction::Unary(UnaryOperator::Negate, src, dest) => {
+            qbe_ir::Inst::Negate(translate_value(src), translate_value(dest))
+        }
+        ir::Instruction::Unary(UnaryOperator::Complement, src, dest) => {
+            qbe_ir::Inst::Complement(translate_value(src), translate_value(dest))
         }
         _ => unimplemented!(),
     }
@@ -13,7 +24,7 @@ fn translate_instruction(code: ir::Instruction) -> qbe_ir::Inst {
 fn translate_function(code: ir::Function) -> qbe_ir::Function {
     qbe_ir::Function {
         name: code.name,
-        body: translate_instruction(code.body[0].clone()),
+        body: code.body.into_iter().map(translate_instruction).collect(),
     }
 }
 

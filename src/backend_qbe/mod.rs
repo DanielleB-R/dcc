@@ -32,10 +32,24 @@ impl QbeBackend {
     }
 }
 
+fn emit_value(code: qbe_ir::Value) -> String {
+    match code {
+        qbe_ir::Value::Constant(n) => format!("{}", n),
+        qbe_ir::Value::Temporary(name) => format!("%{}", name),
+    }
+}
+
 fn emit_instruction(code: qbe_ir::Inst) -> String {
     match code {
         qbe_ir::Inst::Ret(n) => {
-            format!("ret {}", n)
+            format!("ret {}", emit_value(n))
+        }
+        qbe_ir::Inst::Negate(src, dest) => {
+            format!("{} =w neg {}", emit_value(dest), emit_value(src),)
+        }
+
+        qbe_ir::Inst::Complement(src, dest) => {
+            format!("{} =w xor {}, -1", emit_value(dest), emit_value(src),)
         }
     }
 }
@@ -46,7 +60,11 @@ fn emit_ssa(code: qbe_ir::Program) -> String {
     format!(
         "export function w ${}() {{\n@start\n{}\n}}",
         f.name.value,
-        emit_instruction(f.body)
+        f.body
+            .into_iter()
+            .map(emit_instruction)
+            .collect::<Vec<_>>()
+            .join("\n")
     )
 }
 
