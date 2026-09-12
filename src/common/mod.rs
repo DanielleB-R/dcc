@@ -8,7 +8,11 @@ pub mod type_table;
 pub use constant::Constant;
 pub use ctype::CType;
 
-use std::{fmt::Display, hash::Hash};
+use std::{
+    fmt::Display,
+    hash::Hash,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use derive_more::Display;
 use serde::Serialize;
@@ -87,6 +91,8 @@ impl From<&'static str> for Identifier {
     }
 }
 
+static LABEL_INDEX: AtomicUsize = AtomicUsize::new(1);
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Display, Hash)]
 #[display("{tag}.{counter}")]
 pub struct CodeLabel {
@@ -94,11 +100,29 @@ pub struct CodeLabel {
     pub counter: usize,
 }
 
+impl CodeLabel {
+    pub fn uniquify(&self) -> Self {
+        Self {
+            tag: self.tag,
+            counter: LABEL_INDEX.fetch_add(1, Ordering::Relaxed),
+        }
+    }
+}
+
 impl From<Token> for CodeLabel {
     fn from(value: Token) -> Self {
         Self {
             tag: value.value.unwrap().leak(),
             counter: 0,
+        }
+    }
+}
+
+impl From<&'static str> for CodeLabel {
+    fn from(value: &'static str) -> Self {
+        Self {
+            tag: value,
+            counter: LABEL_INDEX.fetch_add(1, Ordering::Relaxed),
         }
     }
 }

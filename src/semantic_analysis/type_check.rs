@@ -95,7 +95,7 @@ struct Typechecker {
     symbols: SymbolTable,
     types: TypeTable,
     current_return_type: Option<CType>,
-    constant_index: Counter,
+    constant_counter: Counter,
 }
 
 impl Typechecker {
@@ -104,12 +104,12 @@ impl Typechecker {
             symbols: SymbolTable::new(),
             types: TypeTable::new(),
             current_return_type: None,
-            constant_index: Counter::new(),
+            constant_counter: Counter::new(),
         }
     }
 
     fn generate_constant_name(&mut self) -> String {
-        format!(".string.{}", self.constant_index.get_next())
+        format!(".string.{}", self.constant_counter.get_next())
     }
 
     fn get_common_type(&self, mut type1: &CType, mut type2: &CType) -> CType {

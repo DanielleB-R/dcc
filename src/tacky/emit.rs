@@ -4,13 +4,12 @@ use super::ir::{self, BinaryOp, ExpressionResult, Instruction, Value};
 use crate::common::symbol_table::{
     IdentifierAttrs, InitialValue, StaticAttr, StaticInit, SymbolEntry, SymbolTable,
 };
-use crate::common::{CType, CodeLabel, Constant, Identifier, type_table::TypeTable};
+use crate::common::{CType, CodeLabel, Constant, Counter, Identifier, type_table::TypeTable};
 use crate::parser::ast::{self, *};
 
 struct Tackier<'a> {
-    temporary_index: usize,
-    label_index: usize,
-    constant_index: usize,
+    temporary_counter: Counter,
+    constant_counter: Counter,
     instructions: Vec<Instruction>,
     symbol_table: &'a mut SymbolTable,
     type_table: &'a TypeTable,
@@ -62,9 +61,8 @@ fn chunk_string_init(s: &str, target_len: usize) -> Vec<Constant> {
 impl<'a> Tackier<'a> {
     fn new(symbol_table: &'a mut SymbolTable, type_table: &'a TypeTable) -> Self {
         Self {
-            temporary_index: 0,
-            label_index: 0,
-            constant_index: 0,
+            temporary_counter: Default::default(),
+            constant_counter: Default::default(),
             instructions: vec![],
             symbol_table,
             type_table,
@@ -76,9 +74,7 @@ impl<'a> Tackier<'a> {
     }
 
     fn make_temporary(&mut self, target_type: &CType) -> Value {
-        self.temporary_index += 1;
-
-        let name = format!(".tmp.{}", self.temporary_index).leak();
+        let name = format!(".tmp.{}", self.temporary_counter.get_next()).leak();
 
         self.symbol_table.insert(
             name,
@@ -97,9 +93,7 @@ impl<'a> Tackier<'a> {
     }
 
     fn make_string_constant(&mut self, s: String, value_type: CType) -> Value {
-        self.constant_index += 1;
-
-        let name = format!("..string.{}", self.constant_index).leak();
+        let name = format!("..string.{}", self.constant_counter.get_next()).leak();
 
         if value_type.size(self.type_table) == s.len() {
             self.symbol_table.insert(
@@ -125,14 +119,6 @@ impl<'a> Tackier<'a> {
             location: 0,
         }
         .into()
-    }
-
-    fn make_label(&mut self, tag: &'static str) -> CodeLabel {
-        self.label_index += 1;
-        CodeLabel {
-            tag,
-            counter: self.label_index,
-        }
     }
 
     fn emit_postfix(
@@ -268,8 +254,8 @@ impl<'a> Tackier<'a> {
     }
 
     fn emit_and(&mut self, left: Expression, right: Expression) -> ExpressionResult {
-        let false_label = self.make_label(".and_false");
-        let end_label = self.make_label(".and_end");
+        let false_label = CodeLabel::from(".and_false");
+        let end_label = CodeLabel::from(".and_end");
 
         let left_condition = self.emit_tacky_exp_and_convert(left);
         self.emit(Instruction::JumpIfZero(left_condition, false_label));
@@ -286,8 +272,8 @@ impl<'a> Tackier<'a> {
     }
 
     fn emit_or(&mut self, left: Expression, right: Expression) -> ExpressionResult {
-        let true_label = self.make_label(".or_true");
-        let end_label = self.make_label(".or_end");
+        let true_label = CodeLabel::from(".or_true");
+        let end_label = CodeLabel::from(".or_end");
 
         let left_condition = self.emit_tacky_exp_and_convert(left);
         self.emit(Instruction::JumpIfNotZero(left_condition, true_label));
@@ -525,8 +511,8 @@ impl<'a> Tackier<'a> {
         else_expr: Expression,
         value_type: CType,
     ) -> ExpressionResult {
-        let e2_label = self.make_label(".ternary_e2");
-        let end_label = self.make_label(".ternary_end");
+        let e2_label = CodeLabel::from(".ternary_e2");
+        let end_label = CodeLabel::from(".ternary_end");
 
         let condition_type = condition.get_type().clone();
         let condition_value = self.emit_tacky_exp_and_convert(condition);
@@ -798,7 +784,7 @@ impl<'a> Tackier<'a> {
             }
             Stmt::Null => {}
             Stmt::If(condition, then_stmt, None) => {
-                let end_label = self.make_label(".if_end");
+                let end_label = CodeLabel::from(".if_end");
 
                 let condition_value = self.emit_tacky_exp_and_convert(condition);
                 self.emit(Instruction::JumpIfZero(condition_value, end_label));
@@ -806,8 +792,8 @@ impl<'a> Tackier<'a> {
                 self.emit(Instruction::Label(end_label));
             }
             Stmt::If(condition, then_stmt, Some(else_stmt)) => {
-                let else_label = self.make_label(".if_else");
-                let end_label = self.make_label(".if_end");
+                let else_label = CodeLabel::from(".if_else");
+                let end_label = CodeLabel::from(".if_end");
 
                 let condition_value = self.emit_tacky_exp_and_convert(condition);
                 self.emit(Instruction::JumpIfZero(condition_value, else_label));
@@ -837,7 +823,7 @@ impl<'a> Tackier<'a> {
             Stmt::DoWhile(body, condition, label) => {
                 let label = label.expect("Unlabelled do while");
 
-                let start_label = self.make_label(".do_start");
+                let start_label = CodeLabel::from(".do_start");
 
                 self.emit(Instruction::Label(start_label));
                 self.emit_tacky_statement(body);
@@ -864,7 +850,7 @@ impl<'a> Tackier<'a> {
             Stmt::For(init, cond, incr, body, label) => {
                 let label = label.expect("Unlabelled for");
 
-                let start_label = self.make_label(".for_start");
+                let start_label = CodeLabel::from(".for_start");
                 let continue_label = convert_loop_label(CONTINUE_TAG, label);
                 let break_label = convert_loop_label(BREAK_TAG, label);
 

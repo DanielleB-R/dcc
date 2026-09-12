@@ -2,29 +2,15 @@ use std::collections::HashMap;
 use std::mem;
 
 use super::visitor::StatementVisitor;
-use crate::common::{CodeLabel, Counter};
+use crate::common::CodeLabel;
 use crate::errors::SemanticAnalysisError;
 use crate::parser::ast::*;
 
 type Result<T> = std::result::Result<T, SemanticAnalysisError>;
 
-#[derive(Default)]
-struct LoopLabeller {
-    label_count: Counter,
-}
+struct LoopLabeller;
 
 impl LoopLabeller {
-    fn new() -> Self {
-        Default::default()
-    }
-
-    fn make_label(&mut self, tag: &'static str) -> CodeLabel {
-        CodeLabel {
-            tag,
-            counter: self.label_count.get_next(),
-        }
-    }
-
     fn label_program(mut self, code: Program) -> Result<Program> {
         code.map(|decl| {
             decl.fn_map(|func| func.map_block(|block| self.visit_block(block, &mut (None, None))))
@@ -65,7 +51,7 @@ impl StatementVisitor for LoopLabeller {
         _: Option<CodeLabel>,
         _: &mut Self::ExtraParam,
     ) -> std::result::Result<Stmt, Self::Error> {
-        let new_label = self.make_label(".while");
+        let new_label = CodeLabel::from(".while");
         Ok(Stmt::While(
             condition,
             self.visit_statement(body, &mut (Some(new_label), Some(new_label)))?,
@@ -80,7 +66,7 @@ impl StatementVisitor for LoopLabeller {
         _: Option<CodeLabel>,
         _: &mut Self::ExtraParam,
     ) -> std::result::Result<Stmt, Self::Error> {
-        let new_label = self.make_label(".dowhile");
+        let new_label = CodeLabel::from(".dowhile");
         Ok(Stmt::DoWhile(
             self.visit_statement(body, &mut (Some(new_label), Some(new_label)))?,
             condition,
@@ -97,7 +83,7 @@ impl StatementVisitor for LoopLabeller {
         _: Option<CodeLabel>,
         _: &mut Self::ExtraParam,
     ) -> std::result::Result<Stmt, Self::Error> {
-        let new_label = self.make_label(".for");
+        let new_label = CodeLabel::from(".for");
         Ok(Stmt::For(
             init,
             cond,
@@ -116,7 +102,7 @@ impl StatementVisitor for LoopLabeller {
         _: Option<CodeLabel>,
         (_, continue_label): &mut Self::ExtraParam,
     ) -> std::result::Result<Stmt, Self::Error> {
-        let switch_label = self.make_label(".switch");
+        let switch_label = CodeLabel::from(".switch");
         Ok(Stmt::Switch(
             expr,
             self.visit_statement(body, &mut (Some(switch_label), *continue_label))?,
@@ -128,28 +114,12 @@ impl StatementVisitor for LoopLabeller {
 }
 
 fn label_loops(code: Program) -> Result<Program> {
-    let labeller = LoopLabeller::new();
-
-    labeller.label_program(code)
+    LoopLabeller.label_program(code)
 }
 
-struct LabelUniquifier {
-    label_index: usize,
-}
+struct LabelUniquifier;
 
 impl LabelUniquifier {
-    fn new() -> Self {
-        Self { label_index: 0 }
-    }
-
-    fn uniquify_label(&mut self, label: CodeLabel) -> CodeLabel {
-        self.label_index += 1;
-        CodeLabel {
-            tag: label.tag,
-            counter: self.label_index,
-        }
-    }
-
     fn uniquify_program(&mut self, code: Program) -> Result<Program> {
         code.map(|decl| {
             decl.fn_map(|function| {
@@ -180,7 +150,7 @@ impl StatementVisitor for LabelUniquifier {
                     if label_map.contains_key(label.tag) {
                         Err(SemanticAnalysisError::DuplicateLabel)
                     } else {
-                        let unique_label = self.uniquify_label(label);
+                        let unique_label = label.uniquify();
                         label_map.insert(label.tag, unique_label);
                         Ok(unique_label.into())
                     }
@@ -214,34 +184,18 @@ impl StatementVisitor for GotoUniquifier {
 }
 
 fn uniquify_labels(code: Program) -> Result<Program> {
-    let mut uniquifier = LabelUniquifier::new();
-
-    uniquifier.uniquify_program(code)
+    LabelUniquifier.uniquify_program(code)
 }
 
-struct SwitchCaseGatherer {
-    label_index: usize,
-}
+struct SwitchCaseGatherer;
 
 impl SwitchCaseGatherer {
-    fn new() -> Self {
-        Self { label_index: 0 }
-    }
-
-    fn get_case_label(&mut self) -> CodeLabel {
-        self.label_index += 1;
-        CodeLabel {
-            tag: ".switch.case",
-            counter: self.label_index,
-        }
+    fn get_case_label(&self) -> CodeLabel {
+        ".switch.case".into()
     }
 
     fn get_default_label(&mut self) -> CodeLabel {
-        self.label_index += 1;
-        CodeLabel {
-            tag: ".switch.default",
-            counter: self.label_index,
-        }
+        ".switch.default".into()
     }
 
     fn gather_program(mut self, code: Program) -> Result<Program> {
@@ -323,7 +277,7 @@ impl StatementVisitor for SwitchCaseGatherer {
 }
 
 fn gather_switch_cases(code: Program) -> Result<Program> {
-    SwitchCaseGatherer::new().gather_program(code)
+    SwitchCaseGatherer.gather_program(code)
 }
 
 pub fn analyze_statements(code: Program) -> Result<Program> {
