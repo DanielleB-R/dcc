@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::common::Identifier;
+use crate::common::{CodeLabel, Identifier};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Program {
@@ -20,6 +20,7 @@ pub enum Inst {
     Complement(Value, Value),
     Binary(BinOp, Value, Value, Value),
     Assign(Value, Value),
+    Label(CodeLabel),
 }
 
 #[derive(Clone, Debug, Serialize)]

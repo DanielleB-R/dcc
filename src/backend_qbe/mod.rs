@@ -73,6 +73,9 @@ fn emit_instruction(code: qbe_ir::Inst) -> String {
         qbe_ir::Inst::Assign(src, dest) => {
             format!("{} =w {}", emit_value(dest), emit_value(src))
         }
+        qbe_ir::Inst::Label(label) => {
+            format!("@{}", label)
+        }
     }
 }
 

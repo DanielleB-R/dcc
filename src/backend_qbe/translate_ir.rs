@@ -1,5 +1,8 @@
 use super::qbe_ir;
-use crate::tacky::ir::{self, UnaryOperator};
+use crate::{
+    common::CodeLabel,
+    tacky::ir::{self, UnaryOperator},
+};
 
 fn translate_value(code: ir::Value) -> qbe_ir::Value {
     match code {
@@ -19,32 +22,46 @@ fn translate_binary(code: ir::BinaryOp) -> qbe_ir::BinOp {
     }
 }
 
-fn translate_instruction(code: ir::Instruction) -> qbe_ir::Inst {
+fn translate_instruction(code: ir::Instruction, body: &mut Vec<qbe_ir::Inst>) {
     match code {
-        ir::Instruction::Return(Some(val)) => qbe_ir::Inst::Ret(translate_value(val)),
-        ir::Instruction::Unary(UnaryOperator::Negate, src, dest) => {
-            qbe_ir::Inst::Negate(translate_value(src), translate_value(dest))
+        ir::Instruction::Return(Some(val)) => {
+            body.push(qbe_ir::Inst::Ret(translate_value(val)));
+            body.push(qbe_ir::Inst::Label(CodeLabel::from(".ret")))
         }
-        ir::Instruction::Unary(UnaryOperator::Complement, src, dest) => {
-            qbe_ir::Inst::Complement(translate_value(src), translate_value(dest))
-        }
-        ir::Instruction::Binary(op, src1, src2, dest) => qbe_ir::Inst::Binary(
+        ir::Instruction::Unary(UnaryOperator::Negate, src, dest) => body.push(
+            qbe_ir::Inst::Negate(translate_value(src), translate_value(dest)),
+        ),
+        ir::Instruction::Unary(UnaryOperator::Complement, src, dest) => body.push(
+            qbe_ir::Inst::Complement(translate_value(src), translate_value(dest)),
+        ),
+        ir::Instruction::Binary(op, src1, src2, dest) => body.push(qbe_ir::Inst::Binary(
             translate_binary(op),
             translate_value(src1),
             translate_value(src2),
             translate_value(dest),
-        ),
-        ir::Instruction::Copy(src, dest) => {
-            qbe_ir::Inst::Assign(translate_value(src), translate_value(dest))
-        }
+        )),
+        ir::Instruction::Copy(src, dest) => body.push(qbe_ir::Inst::Assign(
+            translate_value(src),
+            translate_value(dest),
+        )),
         _ => unimplemented!(),
     }
 }
 
 fn translate_function(code: ir::Function) -> qbe_ir::Function {
+    let mut body = vec![];
+
+    for instruction in code.body {
+        translate_instruction(instruction, &mut body);
+    }
+
+    if matches!(body.last().unwrap(), qbe_ir::Inst::Label(_)) {
+        body.pop();
+    }
+
     qbe_ir::Function {
         name: code.name,
-        body: code.body.into_iter().map(translate_instruction).collect(),
+        body,
     }
 }
 
