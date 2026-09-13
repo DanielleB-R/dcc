@@ -1,0 +1,19 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "types(\"(){}[];,.~?:\")"
+---
+[
+    OpenParen,
+    CloseParen,
+    OpenBrace,
+    CloseBrace,
+    OpenBracket,
+    CloseBracket,
+    Semicolon,
+    Comma,
+    Dot,
+    Tilde,
+    Question,
+    Colon,
+    EOF,
+]

@@ -1,0 +1,13 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "values(\"123L 123UL\")"
+---
+[
+    Some(
+        "123",
+    ),
+    Some(
+        "123",
+    ),
+    None,
+]

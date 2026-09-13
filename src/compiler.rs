@@ -1,6 +1,7 @@
 use std::process;
 
 use crate::{
+    OptimizationPasses,
     backend_qbe::QbeBackend,
     backend_x64::X64Backend,
     common::{backend::Backend, write_debug_file, write_debug_text_file},
@@ -10,7 +11,6 @@ use crate::{
     parser::parse_tokens,
     semantic_analysis::{analyze_statements, resolve_variables, typecheck_program},
     tacky::tackify_program,
-    OptimizationPasses,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]

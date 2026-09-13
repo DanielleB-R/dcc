@@ -1,0 +1,10 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "types(\"_foo bar_2 __x\")"
+---
+[
+    Identifier,
+    Identifier,
+    Identifier,
+    EOF,
+]

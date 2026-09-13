@@ -1,0 +1,8 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "types(\"intx\")"
+---
+[
+    Identifier,
+    EOF,
+]

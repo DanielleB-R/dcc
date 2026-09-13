@@ -5,7 +5,7 @@ use derive_more::{Display, From, IsVariant, Unwrap};
 use super::backend_table::BackendTable;
 use crate::common::symbol_table::StaticInit;
 use crate::common::type_table::TypeTable;
-use crate::common::{print_vec, tree, CType, CodeLabel, Identifier};
+use crate::common::{CType, CodeLabel, Identifier, print_vec, tree};
 use crate::tacky::ir::{BinaryOp, UnaryOperator};
 
 pub type Program = tree::Program<TopLevel>;

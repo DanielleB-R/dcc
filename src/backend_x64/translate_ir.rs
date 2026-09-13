@@ -6,7 +6,7 @@ use super::asm_ast::{
 };
 use crate::{
     common::{
-        CType, CodeLabel, Constant, Identifier,
+        CType, CodeLabel, Constant, Counter, Identifier,
         symbol_table::{STable, StaticInit, SymbolTable},
         type_table::{EightbyteClass, TTable, TypeTable},
     },
@@ -116,8 +116,7 @@ enum ReturnValue {
 struct AsmGenerator<'a> {
     symbols: &'a SymbolTable,
     types: &'a TypeTable,
-    constant_index: usize,
-    label_index: usize,
+    constant_counter: Counter,
     static_consts: Vec<StaticConstant>,
 }
 
@@ -126,23 +125,13 @@ impl<'a> AsmGenerator<'a> {
         Self {
             symbols,
             types,
-            constant_index: 0,
+            constant_counter: Default::default(),
             static_consts: vec![],
-            label_index: 0,
         }
     }
 
     fn constant_label(&mut self) -> Identifier {
-        self.constant_index += 1;
-        format!(".L.double_const.{}", self.constant_index).into()
-    }
-
-    fn make_label(&mut self, tag: &'static str) -> CodeLabel {
-        self.label_index += 1;
-        CodeLabel {
-            tag,
-            counter: self.label_index,
-        }
+        format!(".L.double_const.{}", self.constant_counter.get_next()).into()
     }
 
     fn translate_value(&mut self, value: Value) -> Operand {
@@ -708,7 +697,7 @@ impl<'a> AsmGenerator<'a> {
                         self.translate_value(src),
                     ));
 
-                    let out_of_range_label = self.make_label("out_of_range");
+                    let out_of_range_label = CodeLabel::from("out_of_range");
 
                     instructions.push(Inst::JmpCC(ConditionCode::A, out_of_range_label));
                     instructions.push(Inst::Cvttsd2si(
@@ -717,7 +706,7 @@ impl<'a> AsmGenerator<'a> {
                         self.translate_value(dest),
                     ));
 
-                    let end_label = self.make_label("double_convert_end");
+                    let end_label = CodeLabel::from("double_convert_end");
                     instructions.push(Inst::Jmp(end_label));
                     instructions.push(Inst::Label(out_of_range_label));
                     instructions.push(mov(
@@ -795,7 +784,7 @@ impl<'a> AsmGenerator<'a> {
                 }
                 _ => {
                     instructions.push(cmp(Quadword, 0, self.translate_value(src)));
-                    let out_of_range_label = self.make_label("out_of_range");
+                    let out_of_range_label = CodeLabel::from("out_of_range");
                     instructions.push(Inst::JmpCC(ConditionCode::L, out_of_range_label));
                     instructions.push(Inst::Cvtsi2sd(
                         Quadword,
@@ -803,7 +792,7 @@ impl<'a> AsmGenerator<'a> {
                         self.translate_value(dest),
                     ));
 
-                    let end_label = self.make_label("int_to_double_end");
+                    let end_label = CodeLabel::from("int_to_double_end");
                     instructions.push(Inst::Jmp(end_label));
                     instructions.push(Inst::Label(out_of_range_label));
                     instructions.push(mov(Quadword, self.translate_value(src), Register::AX));

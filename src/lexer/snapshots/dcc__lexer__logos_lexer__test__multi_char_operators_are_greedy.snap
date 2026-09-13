@@ -1,0 +1,16 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "types(\">>= <<= == != && || -> ++ --\")"
+---
+[
+    GreaterGreaterEqual,
+    LessLessEqual,
+    EqualEqual,
+    BangEqual,
+    AndAnd,
+    PipePipe,
+    Arrow,
+    PlusPlus,
+    MinusMinus,
+    EOF,
+]

@@ -1,0 +1,7 @@
+---
+source: src/lexer/logos_lexer.rs
+expression: "types(\"  \\t\\n\\n  \\n\")"
+---
+[
+    EOF,
+]
