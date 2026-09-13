@@ -23,7 +23,12 @@ fn translate_binary(code: ir::BinaryOp) -> qbe_ir::BinOp {
         ir::BinaryOp::BitwiseXor => qbe_ir::BinOp::Xor,
         ir::BinaryOp::LeftShift => qbe_ir::BinOp::Shl,
         ir::BinaryOp::RightShift => qbe_ir::BinOp::Sar,
-        _ => unimplemented!(),
+        ir::BinaryOp::Equal => qbe_ir::BinOp::Ceq,
+        ir::BinaryOp::NotEqual => qbe_ir::BinOp::Cne,
+        ir::BinaryOp::LessThan => qbe_ir::BinOp::Cslt,
+        ir::BinaryOp::LessOrEqual => qbe_ir::BinOp::Csle,
+        ir::BinaryOp::GreaterThan => qbe_ir::BinOp::Csgt,
+        ir::BinaryOp::GreaterOrEqual => qbe_ir::BinOp::Csge,
     }
 }
 
@@ -39,13 +44,19 @@ fn translate_instruction(code: ir::Instruction, body: &mut Vec<qbe_ir::Inst>) {
         ir::Instruction::Unary(UnaryOperator::Complement, src, dest) => body.push(
             qbe_ir::Inst::Complement(translate_value(src), translate_value(dest)),
         ),
+        ir::Instruction::Unary(UnaryOperator::Not, src, dest) => body.push(qbe_ir::Inst::Binary(
+            qbe_ir::BinOp::Ceq,
+            translate_value(src),
+            qbe_ir::Value::Constant(0),
+            translate_value(dest),
+        )),
         ir::Instruction::Binary(op, src1, src2, dest) => body.push(qbe_ir::Inst::Binary(
             translate_binary(op),
             translate_value(src1),
             translate_value(src2),
             translate_value(dest),
         )),
-        ir::Instruction::Copy(src, dest) => body.push(qbe_ir::Inst::Assign(
+        ir::Instruction::Copy(src, dest) => body.push(qbe_ir::Inst::Copy(
             translate_value(src),
             translate_value(dest),
         )),

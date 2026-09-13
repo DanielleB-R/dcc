@@ -51,38 +51,44 @@ fn emit_binary(code: qbe_ir::BinOp) -> &'static str {
         qbe_ir::BinOp::Xor => "xor",
         qbe_ir::BinOp::Shl => "shl",
         qbe_ir::BinOp::Sar => "sar",
+        qbe_ir::BinOp::Ceq => "ceqw",
+        qbe_ir::BinOp::Cne => "cnew",
+        qbe_ir::BinOp::Cslt => "csltw",
+        qbe_ir::BinOp::Csle => "cslew",
+        qbe_ir::BinOp::Csgt => "csgtw",
+        qbe_ir::BinOp::Csge => "csgew",
     }
 }
 
 fn emit_instruction(code: qbe_ir::Inst) -> String {
     match code {
         qbe_ir::Inst::Ret(n) => {
-            format!("ret {}", emit_value(n))
+            format!("\tret {}", emit_value(n))
         }
         qbe_ir::Inst::Negate(src, dest) => {
-            format!("{} =w neg {}", emit_value(dest), emit_value(src),)
+            format!("\t{} =w neg {}", emit_value(dest), emit_value(src),)
         }
 
         qbe_ir::Inst::Complement(src, dest) => {
-            format!("{} =w xor {}, -1", emit_value(dest), emit_value(src),)
+            format!("\t{} =w xor {}, -1", emit_value(dest), emit_value(src),)
         }
         qbe_ir::Inst::Binary(op, src1, src2, dest) => {
             format!(
-                "{} =w {} {}, {}",
+                "\t{} =w {} {}, {}",
                 emit_value(dest),
                 emit_binary(op),
                 emit_value(src1),
                 emit_value(src2)
             )
         }
-        qbe_ir::Inst::Assign(src, dest) => {
-            format!("{} =w {}", emit_value(dest), emit_value(src))
+        qbe_ir::Inst::Copy(src, dest) => {
+            format!("\t{} =w copy {}", emit_value(dest), emit_value(src))
         }
         qbe_ir::Inst::Jump(label) => {
-            format!("jmp @{}", label)
+            format!("\tjmp @{}", label)
         }
         qbe_ir::Inst::Jnz(val, nz_label, z_label) => {
-            format!("jnz {}, @{}, @{}", emit_value(val), nz_label, z_label)
+            format!("\tjnz {}, @{}, @{}", emit_value(val), nz_label, z_label)
         }
         qbe_ir::Inst::Label(label) => {
             format!("@{}", label)
