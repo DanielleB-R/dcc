@@ -18,6 +18,11 @@ fn translate_binary(code: ir::BinaryOp) -> qbe_ir::BinOp {
         ir::BinaryOp::Multiply => qbe_ir::BinOp::Mul,
         ir::BinaryOp::Divide => qbe_ir::BinOp::Div,
         ir::BinaryOp::Remainder => qbe_ir::BinOp::Rem,
+        ir::BinaryOp::BitwiseAnd => qbe_ir::BinOp::And,
+        ir::BinaryOp::BitwiseOr => qbe_ir::BinOp::Or,
+        ir::BinaryOp::BitwiseXor => qbe_ir::BinOp::Xor,
+        ir::BinaryOp::LeftShift => qbe_ir::BinOp::Shl,
+        ir::BinaryOp::RightShift => qbe_ir::BinOp::Sar,
         _ => unimplemented!(),
     }
 }
@@ -44,6 +49,20 @@ fn translate_instruction(code: ir::Instruction, body: &mut Vec<qbe_ir::Inst>) {
             translate_value(src),
             translate_value(dest),
         )),
+        ir::Instruction::Jump(label) => body.push(qbe_ir::Inst::Jump(label)),
+        ir::Instruction::JumpIfZero(val, target) => {
+            let nz_label = CodeLabel::from(".jnz");
+
+            body.push(qbe_ir::Inst::Jnz(translate_value(val), nz_label, target));
+            body.push(qbe_ir::Inst::Label(nz_label));
+        }
+        ir::Instruction::JumpIfNotZero(val, target) => {
+            let z_label = CodeLabel::from(".jnz");
+
+            body.push(qbe_ir::Inst::Jnz(translate_value(val), target, z_label));
+            body.push(qbe_ir::Inst::Label(z_label));
+        }
+        ir::Instruction::Label(label) => body.push(qbe_ir::Inst::Label(label)),
         _ => unimplemented!(),
     }
 }

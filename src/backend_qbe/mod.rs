@@ -46,6 +46,11 @@ fn emit_binary(code: qbe_ir::BinOp) -> &'static str {
         qbe_ir::BinOp::Mul => "mul",
         qbe_ir::BinOp::Div => "div",
         qbe_ir::BinOp::Rem => "rem",
+        qbe_ir::BinOp::And => "and",
+        qbe_ir::BinOp::Or => "or",
+        qbe_ir::BinOp::Xor => "xor",
+        qbe_ir::BinOp::Shl => "shl",
+        qbe_ir::BinOp::Sar => "sar",
     }
 }
 
@@ -72,6 +77,12 @@ fn emit_instruction(code: qbe_ir::Inst) -> String {
         }
         qbe_ir::Inst::Assign(src, dest) => {
             format!("{} =w {}", emit_value(dest), emit_value(src))
+        }
+        qbe_ir::Inst::Jump(label) => {
+            format!("jmp @{}", label)
+        }
+        qbe_ir::Inst::Jnz(val, nz_label, z_label) => {
+            format!("jnz {}, @{}, @{}", emit_value(val), nz_label, z_label)
         }
         qbe_ir::Inst::Label(label) => {
             format!("@{}", label)

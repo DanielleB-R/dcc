@@ -20,6 +20,8 @@ pub enum Inst {
     Complement(Value, Value),
     Binary(BinOp, Value, Value, Value),
     Assign(Value, Value),
+    Jump(CodeLabel),
+    Jnz(Value, CodeLabel, CodeLabel),
     Label(CodeLabel),
 }
 
@@ -36,4 +38,9 @@ pub enum BinOp {
     Mul,
     Div,
     Rem,
+    And,
+    Or,
+    Xor,
+    Shl,
+    Sar,
 }
