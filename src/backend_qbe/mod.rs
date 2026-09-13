@@ -70,6 +70,9 @@ fn emit_instruction(code: qbe_ir::Inst) -> String {
                 emit_value(src2)
             )
         }
+        qbe_ir::Inst::Assign(src, dest) => {
+            format!("{} =w {}", emit_value(dest), emit_value(src))
+        }
     }
 }
 

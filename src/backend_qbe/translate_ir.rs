@@ -34,6 +34,9 @@ fn translate_instruction(code: ir::Instruction) -> qbe_ir::Inst {
             translate_value(src2),
             translate_value(dest),
         ),
+        ir::Instruction::Copy(src, dest) => {
+            qbe_ir::Inst::Assign(translate_value(src), translate_value(dest))
+        }
         _ => unimplemented!(),
     }
 }

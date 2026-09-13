@@ -19,6 +19,7 @@ pub enum Inst {
     Negate(Value, Value),
     Complement(Value, Value),
     Binary(BinOp, Value, Value, Value),
+    Assign(Value, Value),
 }
 
 #[derive(Clone, Debug, Serialize)]
