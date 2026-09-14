@@ -60,7 +60,10 @@ fn translate_instruction(code: ir::Instruction, body: &mut Vec<qbe_ir::Inst>) {
             translate_value(src),
             translate_value(dest),
         )),
-        ir::Instruction::Jump(label) => body.push(qbe_ir::Inst::Jump(label)),
+        ir::Instruction::Jump(label) => {
+            body.push(qbe_ir::Inst::Jump(label));
+            body.push(qbe_ir::Inst::Label(CodeLabel::from(".jmp")));
+        }
         ir::Instruction::JumpIfZero(val, target) => {
             let nz_label = CodeLabel::from(".jnz");
 
