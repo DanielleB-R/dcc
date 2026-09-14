@@ -32,12 +32,13 @@ initially committed missing that file, which broke the build; fixed now),
 (plan updates), `f1cbce4 "Add a QBE IR and use it"`, `3ba57be "Implement
 Chapter 2"`, `b723fc4 "Implement Chapter 3"`, `316e267 "Begin Chapter 4"`,
 `f78cde1 "Make valid SSA with multiple rets"`, `146ccae "Implement bitwise
-and begin to implement Chapter 4"`, `05ca582 "Implement Chapter 4"` — plus a
-merge of `main` (`22a8a7c`, bringing in a `Counter`/global `CodeLabel`
-uniquifier refactor and a switch to snapshot testing — unrelated to QBE,
-noted below where it matters) and a routine dependency-version bump merged in
-from a branch named `artemis-qbe` (safe to ignore). **The branch builds
-cleanly.** It uses a real `Backend` **trait** rather than the plain
+and begin to implement Chapter 4"`, `05ca582 "Implement Chapter 4"`,
+`b3e9bd0` (plan update), `5ca0756 "Add label after unconditional jump too"`
+— plus a merge of `main` (`22a8a7c`, bringing in a `Counter`/global
+`CodeLabel` uniquifier refactor and a switch to snapshot testing — unrelated
+to QBE, noted below where it matters) and a routine dependency-version bump
+merged in from a branch named `artemis-qbe` (safe to ignore). **The branch
+builds cleanly.** It uses a real `Backend` **trait** rather than the plain
 enum-dispatch this plan originally sketched — the rest of this document
 (Driver/CLI plumbing, Module layout) is written to match that choice rather
 than re-argue for the enum.
@@ -67,6 +68,32 @@ chapter 1: 24/24, chapter 2: 43/43, chapter 3: 78/78, chapter 4: 121/121
 counts don't move between the two runs above for it specifically — bitwise
 and compound-assignment extra-credit cases do show up starting chapter 3/4.)
 
+**Stages 2–5 (chapters 5–8: local variables, if/conditional expressions,
+compound blocks, loops) are also done**, checked with the full extra-credit
+set on (`--bitwise --compound --increment --goto --switch`):
+```
+chapter 5: 203/203, chapter 6: 271/271, chapter 7: 298/298, chapter 8: 396/396
+```
+modulo **one parked failure** present in every run from chapter 5 onward —
+`tests/chapter_5/valid/use_val_in_own_initializer.c` (`int a = 0 && a;`,
+`return a;`). QBE rejects it outright (`ssa temporary %a.1 is used
+undefined in @.jnz.3`): it statically requires every temp be reachable from
+a definition on every CFG path, regardless of runtime reachability, and this
+deliberately-UB test reads `a` inside the (never-actually-taken) right-hand
+side of `&&` before `a`'s only definition. Not a backend bug in the ordinary
+sense — it's a real gap in the "one QBE `%temp` per TACKY variable" mapping
+(see "Key finding" below) for this one intentionally-undefined-behavior case.
+Parked, not blocking: 1 of 396 tests, and the general fix (give scalar
+locals a memory slot instead of a bare `%temp`, per the `alloc4`/`alloc8`
+mechanism already planned for address-taken locals in "Function/program
+structure") is known but deliberately deferred.
+
+Importantly, `--switch` and loop `break`/`continue` (chapter 8) — genuine
+control-flow **merge** points, not just fall-off-the-end dead code —
+introduced **no new failures**: the per-terminator synthetic-`Label` fix
+(see below) holds up under real merge points, not just the straight-line and
+single-branch cases it was originally verified against.
+
 **A real double-`ret` bug was found and fixed in the interim** (documented
 here for posterity since it shaped the design): a bare TACKY body like `int
 main(void){ return 2; }` produces `[Return(2), Return(0)]` (TACKY
@@ -84,11 +111,14 @@ merge above: `CodeLabel::from(&'static str)` now uniquifies via a global
 `AtomicUsize` counter (`src/common/mod.rs`), so repeated `.ret`/`.jnz` tags
 across (or within) functions never collide. A trailing synthetic label with
 nothing after it is popped in `translate_function` so the emitted file never
-ends on a bare label. This resolves the bug for chapters 1–4's control flow;
-whether it's sufficient once real multi-way branching (loops, `switch`) needs
-to *merge* control flow back together (not just fall off the end) is worth
-re-checking at Stage 5 (chapter 8) — see "Module layout" and "Function/program
-structure" for what's still simplified relative to the original plan.
+ends on a bare label. This resolves the bug for chapters 1–4's control flow.
+`5ca0756 "Add label after unconditional jump too"` extended the same
+insert-a-label-after-every-terminator treatment to plain `Jump` (what `goto`
+lowers to), not just `Return`/`Jnz`. **Confirmed sufficient through chapter
+8**: real merge points (loop `continue`/`break` targets, `switch` fallthrough
+chains) produced no new failures — see the chapters 5–8 results above. See
+"Module layout" and "Function/program structure" for what's still simplified
+relative to the original two-pass CFG splitter this plan originally sketched.
 
 What's there:
 
@@ -119,11 +149,12 @@ What's there:
 - `src/backend_qbe/mod.rs`, `qbe_ir.rs`, and `translate_ir.rs` now exist with
   a real `impl Backend for QbeBackend`, exercised by the CLI flag above. See
   "Module layout" for current shape and what's still `unimplemented!()`.
-- **Not yet done, still needed**: everything past chapter 4 — Stage 2
-  (chapter 5, local variables/`alloc`), `types.rs`, `emit_qbe.rs`'s dedicated
+- **Not yet done, still needed**: everything past chapter 8 — Stage 6
+  (chapter 9, functions/`FunCall`), `types.rs`, `emit_qbe.rs`'s dedicated
   split-out from `mod.rs`, `debug`/`Stage` plumbing into `QbeBackend` (its
   constructor currently only takes `source_name`, unlike `X64Backend`'s
-  `debug, stage, source_name`).
+  `debug, stage, source_name`), and the parked `use_val_in_own_initializer`
+  case above whenever it's worth picking back up.
 
 ## Staged rollout, by book chapter
 
@@ -142,10 +173,10 @@ Don't skip ahead of a red stage.
 | Stage | Chapter(s) | New TACKY surface | Backend work added |
 |---|---|---|---|
 | 1 | 1–4 (constants, unary, binary arithmetic, logical/relational + short-circuit) | `Return`, `Unary`, `Binary` (arith/bitwise/compare), `Copy`, `Jump`/`JumpIfZero`/`JumpIfNotZero`/`Label` (short-circuit `&&`/`\|\|` already lower to these before "if" even exists) | **✅ Done.** Bare `--backend qbe` passes chapters 1–4 (24/43/66/105) and again with `--bitwise --compound --increment` extra credit on (24/43/78/121). See "Progress so far" for the double-`ret` bug that was found and fixed along the way, and the simplified (non-CFG) fix used. `types.rs`/`emit_qbe.rs` still don't exist as separate files — see "Module layout" |
-| 2 | 5 (local variables) | more `Copy`/variable traffic, no new instruction kind | — |
-| 3 | 6 (if / conditional expressions) | same instructions, first real branch coverage | — |
-| 4 | 7 (compound statements/blocks) | none (scoping is a semantic-analysis concern) | — |
-| 5 | 8 (loops, break/continue) + goto/switch extra credit if you want it now | still the same instruction set — `switch` desugars to compare/jump chains and `goto` is just more `Label`/`Jump` in TACKY already | — |
+| 2 | 5 (local variables) | more `Copy`/variable traffic, no new instruction kind | **✅ Done** (203/203, incl. extra credit) — modulo 1 parked case, see "Progress so far" |
+| 3 | 6 (if / conditional expressions) | same instructions, first real branch coverage | **✅ Done** (271/271 cumulative) |
+| 4 | 7 (compound statements/blocks) | none (scoping is a semantic-analysis concern) | **✅ Done** (298/298 cumulative) |
+| 5 | 8 (loops, break/continue) + goto/switch extra credit | still the same instruction set — `switch` desugars to compare/jump chains and `goto` is just more `Label`/`Jump` in TACKY already | **✅ Done** (396/396 cumulative, `--goto --switch` included) — first real test of control-flow merge points; the per-terminator `Label` fix held up, no new failures |
 | 6 | 9 (functions) | `FunCall`, non-`Void` `Return`, params | `@start` alloc-scan starts to matter once functions take address-taken params |
 | 7 | 10 (file-scope vars, static/extern) | `StaticVariable`/`StaticConstant` | `data` emission, `export`/global handling |
 | 8 | 11 (long) | `Long` type, `SignExtend`/`Truncate` to/from `Long` | extend `types.rs` |
@@ -213,12 +244,13 @@ handling and real type-driven emission.
 **`emit_ssa` still does not do real block splitting** — it emits `@start`
 followed by one flat instruction stream, and relies on `translate_ir.rs`
 inserting a synthetic `Label` after every block-ending instruction (`Return`,
-`Jnz`) to keep the QBE output syntactically block-structured. This is a
-narrower fix than the two-pass CFG splitter sketched below (it only reacts to
-instructions *within* a single function's already-linear TACKY body, not a
-general block-graph pass), and hasn't yet been exercised by control flow that
-*merges* back together (loops with `continue`, `switch`) — worth re-verifying
-once those land, per Stage 5.
+`Jnz`, and — as of `5ca0756` — plain `Jump`) to keep the QBE output
+syntactically block-structured. This is a narrower fix than the two-pass CFG
+splitter sketched below (it only reacts to instructions *within* a single
+function's already-linear TACKY body, not a general block-graph pass), but
+**it has now been exercised by control flow that merges back together**
+(loop `continue`/`break`, `switch` fallthrough, chapter 8) with no new
+failures — see "Progress so far."
 
 `QbeBackend::emit` (the `Backend` trait method — see Driver/CLI plumbing)
 does: `translate_ir` (TACKY → `qbe_ast`) → `emit_qbe` (→ text) → write to
@@ -313,15 +345,15 @@ internally.
   logic without pulling in its `Entry`/`Exit`/annotation machinery, which is
   more apparatus than a single linear pass needs. Two-pass: assign every
   block a label first, then emit (so `jnz`/`jmp` fallthrough targets are
-  known). **Superseded in practice (chapters 1–4)**: rather than this
-  two-pass structural splitter, `translate_ir.rs` (as of `f78cde1`) just
-  inserts a fresh `Label` (`CodeLabel::from(".ret")`/`.jnz`, auto-uniquified)
-  immediately after every `Return`/`Jnz` it emits, so no instruction stream
-  ever has two terminators in a row. Simpler, and green through chapter 4 —
-  but it's a local patch at each terminator site, not a general pass over
-  the block graph, so revisit whether it's still sufficient once real
-  merge-points (loop `continue` targets, `switch` fallthrough) show up at
-  Stage 5.
+  known). **Superseded in practice**: rather than this two-pass structural
+  splitter, `translate_ir.rs` (as of `f78cde1`, extended to plain `Jump` by
+  `5ca0756`) just inserts a fresh `Label` (`CodeLabel::from(".ret")`/`.jnz`,
+  auto-uniquified) immediately after every `Return`/`Jnz`/`Jump` it emits, so
+  no instruction stream ever has two terminators in a row. Simpler, and green
+  through chapter 8 — including real merge-points (loop `continue` targets,
+  `switch` fallthrough), which it turned out to handle correctly despite
+  being a local patch at each terminator site rather than a general pass
+  over the block graph.
 - Every function body already ends in a defensive `Return`
   (`src/tacky/emit.rs:987-995`), so the last block always has a real
   terminator — no synthesized trailing `ret` needed. This defensive `Return`
