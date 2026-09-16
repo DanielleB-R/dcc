@@ -33,8 +33,9 @@ initially committed missing that file, which broke the build; fixed now),
 Chapter 2"`, `b723fc4 "Implement Chapter 3"`, `316e267 "Begin Chapter 4"`,
 `f78cde1 "Make valid SSA with multiple rets"`, `146ccae "Implement bitwise
 and begin to implement Chapter 4"`, `05ca582 "Implement Chapter 4"`,
-`b3e9bd0` (plan update), `5ca0756 "Add label after unconditional jump too"`
-— plus a merge of `main` (`22a8a7c`, bringing in a `Counter`/global
+`b3e9bd0`/`37848ca` (plan updates), `5ca0756 "Add label after unconditional
+jump too"`, `60d845d "Emit multiple functions with params"`, `b1a601c
+"Implement function calls"` — plus a merge of `main` (`22a8a7c`, bringing in a `Counter`/global
 `CodeLabel` uniquifier refactor and a switch to snapshot testing — unrelated
 to QBE, noted below where it matters) and a routine dependency-version bump
 merged in from a branch named `artemis-qbe` (safe to ignore). **The branch
@@ -94,6 +95,33 @@ introduced **no new failures**: the per-terminator synthetic-`Label` fix
 (see below) holds up under real merge points, not just the straight-line and
 single-branch cases it was originally verified against.
 
+**Stage 6 (chapter 9, functions) is done**: `60d845d "Emit multiple functions
+with params"` + `b1a601c "Implement function calls"` add multi-function
+programs, params (`qbe_ir::Function.params`, emitted as `w %name` in the
+function signature — no ABI type selection yet, everything is `w`, which is
+fine while Phase 1 scalar types beyond `Int` aren't implemented regardless),
+and `FunCall` → `%dest =w call $name(w %arg, ...)`. Checked cumulatively with
+the full extra-credit set on:
+```
+chapter 9: 474 tests, 1 failure, 1 error
+```
+The 1 failure is the same parked `use_val_in_own_initializer` case. **The 1
+error is not a QBE backend bug**: `tests/chapter_9/valid/stack_arguments/
+stack_alignment_check_osx.s` is a hand-written x86-64 AT&T-syntax helper
+file the conformance suite ships and assembles directly via `gcc`/`as` —
+this host's assembler can't assemble x86-64 text at all (arm64 host, no `as`
+target for it), independent of which dcc backend produced anything.
+Confirmed: `--backend x64` fails **175 of 301** chapter-9 tests outright for
+the exact same reason (every test that needs `gcc` to assemble dcc's own
+x86-64 `.s` output hits it too) — a pre-existing environment gap on this
+machine, not something either backend can fix. Net: chapter 9's ~78 net-new
+tests are effectively all green. One known gap not yet exercised by any
+passing test: `ir::Instruction::Return(None)` (void-function returns) still
+falls through `translate_instruction`'s `_ => unimplemented!()` — worth
+confirming before or during chapter 10, since file-scope function
+declarations/statics may be the first place a `void` function actually shows
+up in a *valid* test.
+
 **A real double-`ret` bug was found and fixed in the interim** (documented
 here for posterity since it shaped the design): a bare TACKY body like `int
 main(void){ return 2; }` produces `[Return(2), Return(0)]` (TACKY
@@ -149,12 +177,13 @@ What's there:
 - `src/backend_qbe/mod.rs`, `qbe_ir.rs`, and `translate_ir.rs` now exist with
   a real `impl Backend for QbeBackend`, exercised by the CLI flag above. See
   "Module layout" for current shape and what's still `unimplemented!()`.
-- **Not yet done, still needed**: everything past chapter 8 — Stage 6
-  (chapter 9, functions/`FunCall`), `types.rs`, `emit_qbe.rs`'s dedicated
-  split-out from `mod.rs`, `debug`/`Stage` plumbing into `QbeBackend` (its
-  constructor currently only takes `source_name`, unlike `X64Backend`'s
-  `debug, stage, source_name`), and the parked `use_val_in_own_initializer`
-  case above whenever it's worth picking back up.
+- **Not yet done, still needed**: everything past chapter 9 — Stage 7
+  (chapter 10, file-scope vars/static/extern), `Return(None)`/void functions
+  (see chapter 9 note above), `types.rs`, `emit_qbe.rs`'s dedicated split-out
+  from `mod.rs`, `debug`/`Stage` plumbing into `QbeBackend` (its constructor
+  currently only takes `source_name`, unlike `X64Backend`'s `debug, stage,
+  source_name`), and the parked `use_val_in_own_initializer` case above
+  whenever it's worth picking back up.
 
 ## Staged rollout, by book chapter
 
@@ -177,7 +206,7 @@ Don't skip ahead of a red stage.
 | 3 | 6 (if / conditional expressions) | same instructions, first real branch coverage | **✅ Done** (271/271 cumulative) |
 | 4 | 7 (compound statements/blocks) | none (scoping is a semantic-analysis concern) | **✅ Done** (298/298 cumulative) |
 | 5 | 8 (loops, break/continue) + goto/switch extra credit | still the same instruction set — `switch` desugars to compare/jump chains and `goto` is just more `Label`/`Jump` in TACKY already | **✅ Done** (396/396 cumulative, `--goto --switch` included) — first real test of control-flow merge points; the per-terminator `Label` fix held up, no new failures |
-| 6 | 9 (functions) | `FunCall`, non-`Void` `Return`, params | `@start` alloc-scan starts to matter once functions take address-taken params |
+| 6 | 9 (functions) | `FunCall`, non-`Void` `Return`, params | **✅ Done** (474/474 cumulative minus the 1 parked case, plus 1 environment-only assembler error unrelated to either backend — see "Progress so far"). `Return(None)`/void still `unimplemented!()`, unexercised so far |
 | 7 | 10 (file-scope vars, static/extern) | `StaticVariable`/`StaticConstant` | `data` emission, `export`/global handling |
 | 8 | 11 (long) | `Long` type, `SignExtend`/`Truncate` to/from `Long` | extend `types.rs` |
 | 9 | 12 (unsigned) | `Unsigned`/`UnsignedLong`, `ZeroExtend` | `udiv`/`urem`/`shr`/unsigned comparisons |
