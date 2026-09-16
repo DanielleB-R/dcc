@@ -96,18 +96,30 @@ fn emit_instruction(code: qbe_ir::Inst) -> String {
     }
 }
 
-fn emit_ssa(code: qbe_ir::Program) -> String {
-    let f = code.function;
-
+fn emit_function(code: qbe_ir::Function) -> String {
     format!(
-        "export function w ${}() {{\n@start\n{}\n}}",
-        f.name.value,
-        f.body
+        "export function w ${}({}) {{\n@start\n{}\n}}",
+        code.name.value,
+        code.params
+            .into_iter()
+            .map(emit_value)
+            .map(|name| format!("w {}", name))
+            .collect::<Vec<_>>()
+            .join(", "),
+        code.body
             .into_iter()
             .map(emit_instruction)
             .collect::<Vec<_>>()
             .join("\n")
     )
+}
+
+fn emit_ssa(code: qbe_ir::Program) -> String {
+    code.functions
+        .into_iter()
+        .map(emit_function)
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 impl Backend for QbeBackend {

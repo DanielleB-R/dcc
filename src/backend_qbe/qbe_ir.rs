@@ -4,13 +4,14 @@ use crate::common::{CodeLabel, Identifier};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Program {
-    pub function: Function,
+    pub functions: Vec<Function>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Function {
     pub name: Identifier,
     pub body: Vec<Inst>,
+    pub params: Vec<Value>,
 }
 
 #[derive(Clone, Debug, Serialize)]
