@@ -93,6 +93,18 @@ fn emit_instruction(code: qbe_ir::Inst) -> String {
         qbe_ir::Inst::Label(label) => {
             format!("@{}", label)
         }
+        qbe_ir::Inst::Call(name, args, dest) => {
+            format!(
+                "\t{} =w call ${}({})",
+                emit_value(dest),
+                name.value,
+                args.into_iter()
+                    .map(emit_value)
+                    .map(|name| format!("w {}", name))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
     }
 }
 

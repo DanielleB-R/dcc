@@ -77,6 +77,12 @@ fn translate_instruction(code: ir::Instruction, body: &mut Vec<qbe_ir::Inst>) {
             body.push(qbe_ir::Inst::Label(z_label));
         }
         ir::Instruction::Label(label) => body.push(qbe_ir::Inst::Label(label)),
+        ir::Instruction::FunCall(name, params, dest) => body.push(qbe_ir::Inst::Call(
+            name,
+            params.into_iter().map(translate_value).collect(),
+            dest.map(translate_value)
+                .unwrap_or_else(|| qbe_ir::Value::Temporary("%.nil")),
+        )),
         _ => unimplemented!(),
     }
 }

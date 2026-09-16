@@ -24,6 +24,7 @@ pub enum Inst {
     Jump(CodeLabel),
     Jnz(Value, CodeLabel, CodeLabel),
     Label(CodeLabel),
+    Call(Identifier, Vec<Value>, Value),
 }
 
 #[derive(Clone, Debug, Serialize)]
