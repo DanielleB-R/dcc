@@ -110,7 +110,8 @@ fn emit_instruction(code: qbe_ir::Inst) -> String {
 
 fn emit_function(code: qbe_ir::Function) -> String {
     format!(
-        "export function w ${}({}) {{\n@start\n{}\n}}",
+        "{}function w ${}({}) {{\n@start\n{}\n}}",
+        if code.exported { "export " } else { "" },
         code.name.value,
         code.params
             .into_iter()
@@ -126,10 +127,17 @@ fn emit_function(code: qbe_ir::Function) -> String {
     )
 }
 
+fn emit_toplevel(code: qbe_ir::TopLevel) -> String {
+    match code {
+        qbe_ir::TopLevel::Fn(f) => emit_function(f),
+        qbe_ir::TopLevel::StaticVar(v) => unimplemented!(),
+    }
+}
+
 fn emit_ssa(code: qbe_ir::Program) -> String {
-    code.functions
+    code.top_level
         .into_iter()
-        .map(emit_function)
+        .map(emit_toplevel)
         .collect::<Vec<_>>()
         .join("\n\n")
 }

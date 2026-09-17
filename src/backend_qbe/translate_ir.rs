@@ -100,20 +100,21 @@ fn translate_function(code: ir::Function) -> qbe_ir::Function {
 
     qbe_ir::Function {
         name: code.name,
+        exported: code.global,
         body,
         params: code.params.into_iter().map(translate_value).collect(),
     }
 }
 
 pub fn translate_ir(code: ir::Program) -> qbe_ir::Program {
-    let mut functions = vec![];
+    let mut top_level = vec![];
 
     for tl in code.top_level {
-        functions.push(translate_function(match tl {
+        top_level.push(qbe_ir::TopLevel::Fn(translate_function(match tl {
             ir::TopLevel::Fn(f) => f,
             _ => unimplemented!(),
-        }))
+        })))
     }
 
-    qbe_ir::Program { functions }
+    qbe_ir::Program { top_level }
 }

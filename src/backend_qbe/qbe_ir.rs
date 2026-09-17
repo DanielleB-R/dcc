@@ -4,14 +4,28 @@ use crate::common::{CodeLabel, Identifier};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Program {
-    pub functions: Vec<Function>,
+    pub top_level: Vec<TopLevel>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub enum TopLevel {
+    Fn(Function),
+    StaticVar(StaticVar),
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Function {
     pub name: Identifier,
+    pub exported: bool,
     pub body: Vec<Inst>,
     pub params: Vec<Value>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct StaticVar {
+    pub name: Identifier,
+    pub global: bool,
+    pub init: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]
