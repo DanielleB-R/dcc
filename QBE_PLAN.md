@@ -114,8 +114,12 @@ target for it), independent of which dcc backend produced anything.
 Confirmed: `--backend x64` fails **175 of 301** chapter-9 tests outright for
 the exact same reason (every test that needs `gcc` to assemble dcc's own
 x86-64 `.s` output hits it too) — a pre-existing environment gap on this
-machine, not something either backend can fix. Net: chapter 9's ~78 net-new
-tests are effectively all green. One known gap not yet exercised by any
+machine, not something either backend can fix. **Independently confirmed on
+x86-64 Linux**: this same `stack_alignment_check_osx`/stack-arguments case
+passes there, closing the loop — it's this arm64-macOS dev machine's
+assembler that's the limiting factor, not the test, not `--backend x64`, and
+not `--backend qbe`. Net: chapter 9's ~78 net-new tests are effectively all
+green on any host that can actually assemble x86-64. One known gap not yet exercised by any
 passing test: `ir::Instruction::Return(None)` (void-function returns) still
 falls through `translate_instruction`'s `_ => unimplemented!()` — worth
 confirming before or during chapter 10, since file-scope function
